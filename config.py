@@ -1,11 +1,16 @@
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
 # .env ファイルを読み込む
 load_dotenv()
 
+# プロジェクトのルートディレクトリを取得
+PROJECT_ROOT = Path(__file__).parent.absolute()
+
 # === DB設定 ===
-DB_PATH = os.getenv("DB_PATH", "./smart_grow_system.db")
+# 絶対パスを使用（web_app/からアクセスしても正しく参照できる）
+DB_PATH = os.getenv("DB_PATH", str(PROJECT_ROOT / "smart_grow_system.db"))
 
 # === Slack通知設定 ===
 SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL", "")
@@ -60,7 +65,7 @@ DEFAULT_SCHEDULES = [
 IMAGE_WIDTH = 1280
 IMAGE_HEIGHT = 720
 RETENTION_DAYS = 90
-BASE_SAVE_DIR = "plant_images"
+BASE_SAVE_DIR = str(PROJECT_ROOT / "plant_images")
 
 # === AHT25 センサー設定 ===
 AHT_ADDRESS = 0x38
