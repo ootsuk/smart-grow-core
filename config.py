@@ -41,10 +41,19 @@ DEFAULT_LAYERS = [
 ]
 
 # === デフォルトスケジュール ===
+# Layer 0: システム全体（タンク圧力測定 + 給水ポンプ）
+# Layer 1以降: 各層ごとに（カメラ、温湿度センサー）
+# 
+# 水循環の仕組み：
+# - 給水ポンプで上から水を供給
+# - 水が各層を上から下へ循環
+# - 各層の横穴から次の層へ自動で流れる
+# - 排水タンクに回収
 DEFAULT_SCHEDULES = [
-    (0, "water", "12:00:00", 1),
-    (0, "sensor", "00:30:00", 1),
-    (1, "camera", "09:00:00", 1),
+    (0, "sensor", "00:30:00", 1),  # システム全体: タンク圧力測定（30分おき）
+    (0, "water", "12:00:00", 1),   # システム全体: 給水ポンプ起動（毎日12時）
+    (1, "camera", "09:00:00", 1),  # Layer 1: カメラ撮影（毎日9時）
+    (1, "sensor", "00:30:00", 1),  # Layer 1: 温湿度測定（30分おき）
 ]
 
 # === カメラ設定 ===
@@ -53,14 +62,6 @@ IMAGE_HEIGHT = 720
 RETENTION_DAYS = 90
 BASE_SAVE_DIR = "plant_images"
 
-# === AHT25センサーI2C設定 ===
+# === AHT25 センサー設定 ===
 AHT_ADDRESS = 0x38
 AHT_TRIGGER_CMD = [0xAC, 0x33, 0x00]
-
-# === 水圧センサI2Cセンサー設定 ===
-SUPPLY_PRESSURE_SENSOR_ADDR = 0x76  # MS5837（給水タンク）
-DRAIN_PRESSURE_SENSOR_ADDR = 0x77  # MS5837（排水タンク）
-
-# === スケジュール再読み込み間隔（分） ===
-#SCHEDULE_RELOAD_INTERVAL = 1  # 開発時
-SCHEDULE_RELOAD_INTERVAL = 5  # 本番時

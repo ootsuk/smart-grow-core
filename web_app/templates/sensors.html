@@ -1,0 +1,458 @@
+{% extends "base.html" %}
+
+{% block title %}センサーグラフ - Smart Grow System{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="display-6">
+                <i class="fas fa-chart-line text-success"></i> センサーグラフ
+            </h1>
+            <p class="text-muted">温湿度とタンク残量の推移</p>
+        </div>
+    </div>
+
+    <!-- 期間選択ボタン -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="btn-group w-100" role="group">
+                <button type="button" class="btn btn-outline-success active" data-hours="24" onclick="changePeriod(24)">
+                    <i class="fas fa-clock"></i> 24時間
+                </button>
+                <button type="button" class="btn btn-outline-success" data-hours="168" onclick="changePeriod(168)">
+                    <i class="fas fa-calendar-week"></i> 7日間
+                </button>
+                <button type="button" class="btn btn-outline-success" data-hours="720" onclick="changePeriod(720)">
+                    <i class="fas fa-calendar-alt"></i> 30日間
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 最終更新時刻 -->
+    <div class="row mb-3">
+        <div class="col text-end">
+            <small class="text-muted">
+                <i class="fas fa-sync-alt"></i> 最終更新: <span id="last-update">読み込み中...</span>
+            </small>
+        </div>
+    </div>
+
+    <!-- 温度グラフ -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-thermometer-half text-danger"></i> 温度の推移
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" style="height: 400px;">
+                        <canvas id="temperatureChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 湿度グラフ -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-tint text-info"></i> 湿度の推移
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" style="height: 400px;">
+                        <canvas id="humidityChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- タンク残量 -->
+    <div class="row g-3">
+        <!-- 給水タンク -->
+        <div class="col-12 col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-water text-primary"></i> 給水タンク残量
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-3">
+                        <h2 class="mb-0" id="supply-value">
+                            <span class="spinner-border spinner-border-sm"></span>
+                        </h2>
+                        <small class="text-muted">現在の水圧</small>
+                    </div>
+                    
+                    <!-- プログレスバー -->
+                    <div class="mb-3">
+                        <div class="progress" style="height: 30px;">
+                            <div id="supply-progress" class="progress-bar progress-bar-striped progress-bar-animated" 
+                                 role="progressbar" style="width: 0%">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 閾値情報 -->
+                    <div class="alert alert-info mb-0" id="supply-alert">
+                        <i class="fas fa-info-circle"></i> 
+                        <strong>閾値:</strong> <span id="supply-threshold">90.0</span> kPa以下で警告
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 排水タンク -->
+        <div class="col-12 col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-recycle text-warning"></i> 排水タンク残量
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-3">
+                        <h2 class="mb-0" id="drain-value">
+                            <span class="spinner-border spinner-border-sm"></span>
+                        </h2>
+                        <small class="text-muted">現在の水圧</small>
+                    </div>
+                    
+                    <!-- プログレスバー -->
+                    <div class="mb-3">
+                        <div class="progress" style="height: 30px;">
+                            <div id="drain-progress" class="progress-bar progress-bar-striped progress-bar-animated" 
+                                 role="progressbar" style="width: 0%">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 閾値情報 -->
+                    <div class="alert alert-info mb-0" id="drain-alert">
+                        <i class="fas fa-info-circle"></i> 
+                        <strong>閾値:</strong> <span id="drain-threshold">150.0</span> kPa以上で警告
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// グローバル変数
+let temperatureChart = null;
+let humidityChart = null;
+let currentPeriod = 24; // デフォルト24時間
+let updateInterval = null;
+
+// Chart.jsの共通設定
+const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: {
+        intersect: false,
+        mode: 'index'
+    },
+    plugins: {
+        legend: {
+            display: false
+        },
+        tooltip: {
+            callbacks: {
+                title: function(context) {
+                    const date = new Date(context[0].parsed.x);
+                    return date.toLocaleString('ja-JP');
+                }
+            }
+        }
+    },
+    scales: {
+        x: {
+            type: 'time',
+            time: {
+                unit: 'hour',
+                stepSize: 1,
+                displayFormats: {
+                    hour: 'MM/dd HH:mm'
+                }
+            },
+            ticks: {
+                maxTicksLimit: 24,
+                autoSkip: true
+            },
+            grid: {
+                display: false
+            }
+        },
+        y: {
+            beginAtZero: false,
+            grid: {
+                color: 'rgba(0, 0, 0, 0.05)'
+            }
+        }
+    }
+};
+
+// 期間変更
+function changePeriod(hours) {
+    currentPeriod = hours;
+    
+    // ボタンのアクティブ状態を更新
+    document.querySelectorAll('.btn-group button').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.getAttribute('data-hours') == hours) {
+            btn.classList.add('active');
+        }
+    });
+    
+    // X軸の表示単位を変更
+    if (hours <= 24) {
+        temperatureChart.options.scales.x.time.unit = 'hour';
+        temperatureChart.options.scales.x.time.stepSize = 2;
+        temperatureChart.options.scales.x.ticks.maxTicksLimit = 12;
+        humidityChart.options.scales.x.time.unit = 'hour';
+        humidityChart.options.scales.x.time.stepSize = 2;
+        humidityChart.options.scales.x.ticks.maxTicksLimit = 12;
+    } else if (hours <= 168) {
+        temperatureChart.options.scales.x.time.unit = 'day';
+        temperatureChart.options.scales.x.time.stepSize = 1;
+        temperatureChart.options.scales.x.ticks.maxTicksLimit = 7;
+        humidityChart.options.scales.x.time.unit = 'day';
+        humidityChart.options.scales.x.time.stepSize = 1;
+        humidityChart.options.scales.x.ticks.maxTicksLimit = 7;
+    } else {
+        temperatureChart.options.scales.x.time.unit = 'day';
+        temperatureChart.options.scales.x.time.stepSize = 2;
+        temperatureChart.options.scales.x.ticks.maxTicksLimit = 15;
+        humidityChart.options.scales.x.time.unit = 'day';
+        humidityChart.options.scales.x.time.stepSize = 2;
+        humidityChart.options.scales.x.ticks.maxTicksLimit = 15;
+    }
+    
+    // データ更新
+    updateSensorData();
+}
+
+// センサーデータの更新
+function updateSensorData() {
+    fetch(`/api/sensor-history?hours=${currentPeriod}`)
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                updateCharts(result.data);
+                updateTankStatus();
+                
+                // 最終更新時刻
+                const now = new Date();
+                document.getElementById('last-update').textContent = now.toLocaleTimeString('ja-JP');
+            } else {
+                console.error('Error fetching sensor data:', result.error);
+            }
+        })
+        .catch(error => {
+            console.error('Failed to fetch sensor data:', error);
+        });
+}
+
+// グラフの更新
+function updateCharts(data) {
+    // データの準備
+    const timestamps = data.map(d => new Date(d.timestamp));
+    const temperatures = data.map(d => d.temperature);
+    const humidities = data.map(d => d.humidity);
+    
+    // 温度グラフ更新
+    temperatureChart.data.labels = timestamps;
+    temperatureChart.data.datasets[0].data = temperatures;
+    temperatureChart.update('none'); // アニメーションなしで更新
+    
+    // 湿度グラフ更新
+    humidityChart.data.labels = timestamps;
+    humidityChart.data.datasets[0].data = humidities;
+    humidityChart.update('none');
+}
+
+// タンク状態の更新
+function updateTankStatus() {
+    fetch('/api/dashboard-data')
+        .then(response => response.json())
+        .then(result => {
+            if (result.success && result.sensor_data) {
+                const data = result.sensor_data;
+                
+                // 給水タンク
+                if (data.supply_pressure !== null) {
+                    updateSupplyTank(data.supply_pressure, 90.0); // 閾値90.0
+                }
+                
+                // 排水タンク
+                if (data.drain_pressure !== null) {
+                    updateDrainTank(data.drain_pressure, 150.0); // 閾値150.0
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Failed to fetch tank status:', error);
+        });
+}
+
+// 給水タンク更新
+function updateSupplyTank(pressure, threshold) {
+    const valueElement = document.getElementById('supply-value');
+    const progressElement = document.getElementById('supply-progress');
+    const alertElement = document.getElementById('supply-alert');
+    
+    valueElement.textContent = `${pressure} kPa`;
+    
+    // プログレスバー（70-110 kPaの範囲を0-100%にマップ）
+    const minPressure = 70;
+    const maxPressure = 110;
+    const percentage = Math.max(0, Math.min(100, ((pressure - minPressure) / (maxPressure - minPressure)) * 100));
+    progressElement.style.width = `${percentage}%`;
+    
+    // 色とステータス
+    if (pressure < threshold) {
+        progressElement.className = 'progress-bar progress-bar-striped progress-bar-animated bg-danger';
+        alertElement.className = 'alert alert-danger mb-0';
+        alertElement.innerHTML = '<i class="fas fa-exclamation-triangle"></i> <strong>警告:</strong> 水圧が低下しています。給水が必要です！';
+    } else if (pressure < threshold + 5) {
+        progressElement.className = 'progress-bar progress-bar-striped progress-bar-animated bg-warning';
+        alertElement.className = 'alert alert-warning mb-0';
+        alertElement.innerHTML = '<i class="fas fa-exclamation-circle"></i> <strong>注意:</strong> 水圧がやや低下しています。';
+    } else {
+        progressElement.className = 'progress-bar progress-bar-striped progress-bar-animated bg-success';
+        alertElement.className = 'alert alert-success mb-0';
+        alertElement.innerHTML = '<i class="fas fa-check-circle"></i> <strong>正常:</strong> 水圧は適正範囲内です。';
+    }
+}
+
+// 排水タンク更新
+function updateDrainTank(pressure, threshold) {
+    const valueElement = document.getElementById('drain-value');
+    const progressElement = document.getElementById('drain-progress');
+    const alertElement = document.getElementById('drain-alert');
+    
+    valueElement.textContent = `${pressure} kPa`;
+    
+    // プログレスバー（80-160 kPaの範囲を0-100%にマップ）
+    const minPressure = 80;
+    const maxPressure = 160;
+    const percentage = Math.max(0, Math.min(100, ((pressure - minPressure) / (maxPressure - minPressure)) * 100));
+    progressElement.style.width = `${percentage}%`;
+    
+    // 色とステータス
+    if (pressure > threshold) {
+        progressElement.className = 'progress-bar progress-bar-striped progress-bar-animated bg-danger';
+        alertElement.className = 'alert alert-danger mb-0';
+        alertElement.innerHTML = '<i class="fas fa-exclamation-triangle"></i> <strong>警告:</strong> 水圧が高すぎます。排水が必要です！';
+    } else if (pressure > threshold - 10) {
+        progressElement.className = 'progress-bar progress-bar-striped progress-bar-animated bg-warning';
+        alertElement.className = 'alert alert-warning mb-0';
+        alertElement.innerHTML = '<i class="fas fa-exclamation-circle"></i> <strong>注意:</strong> 水圧がやや高くなっています。';
+    } else {
+        progressElement.className = 'progress-bar progress-bar-striped progress-bar-animated bg-success';
+        alertElement.className = 'alert alert-success mb-0';
+        alertElement.innerHTML = '<i class="fas fa-check-circle"></i> <strong>正常:</strong> 水圧は適正範囲内です。';
+    }
+}
+
+// Chart.jsの初期化
+document.addEventListener('DOMContentLoaded', function() {
+    // 温度グラフ
+    const tempCtx = document.getElementById('temperatureChart').getContext('2d');
+    temperatureChart = new Chart(tempCtx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: '温度 (℃)',
+                data: [],
+                borderColor: 'rgb(255, 99, 132)',
+                backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                borderWidth: 2,
+                pointRadius: 0,  // データポイント非表示
+                pointHoverRadius: 5,  // ホバー時は表示
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            ...chartOptions,
+            scales: {
+                ...chartOptions.scales,
+                y: {
+                    ...chartOptions.scales.y,
+                    title: {
+                        display: true,
+                        text: '温度 (℃)'
+                    }
+                }
+            }
+        }
+    });
+    
+    // 湿度グラフ
+    const humCtx = document.getElementById('humidityChart').getContext('2d');
+    humidityChart = new Chart(humCtx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: '湿度 (%)',
+                data: [],
+                borderColor: 'rgb(54, 162, 235)',
+                backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                borderWidth: 2,
+                pointRadius: 0,  // データポイント非表示
+                pointHoverRadius: 5,  // ホバー時は表示
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            ...chartOptions,
+            scales: {
+                ...chartOptions.scales,
+                y: {
+                    ...chartOptions.scales.y,
+                    title: {
+                        display: true,
+                        text: '湿度 (%)'
+                    },
+                    min: 0,
+                    max: 100
+                }
+            }
+        }
+    });
+    
+    // 初回データ読み込み
+    updateSensorData();
+    
+    // 30秒ごとに自動更新
+    updateInterval = setInterval(updateSensorData, 30000);
+});
+
+// ページを離れるときにインターバルをクリア
+window.addEventListener('beforeunload', function() {
+    if (updateInterval) {
+        clearInterval(updateInterval);
+    }
+});
+</script>
+
+<!-- Chart.js time adapter -->
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+{% endblock %}
+

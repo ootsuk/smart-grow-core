@@ -1,0 +1,430 @@
+{% extends "base.html" %}
+
+{% block title %}ダッシュボード - Smart Grow System{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="display-6">
+                <i class="fas fa-home text-success"></i> ダッシュボード
+            </h1>
+            <p class="text-muted">システム概要と最新情報</p>
+        </div>
+    </div>
+
+    <!-- アラート通知エリア -->
+    <div class="row mb-4">
+        <div class="col">
+            <div id="alerts-container">
+                <!-- アラートがここに動的に表示される -->
+            </div>
+        </div>
+    </div>
+
+    <!-- センサーデータカード -->
+    <div class="row g-3 mb-4">
+        <!-- 温度カード -->
+        <div class="col-12 col-md-6 col-lg-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h6 class="card-subtitle mb-2 text-muted">
+                                <i class="fas fa-thermometer-half text-danger"></i> 温度
+                            </h6>
+                            <h2 class="card-title mb-0" id="temp-value">
+                                <span class="spinner-border spinner-border-sm" role="status"></span>
+                            </h2>
+                            <small class="text-muted" id="temp-time">読み込み中...</small>
+                        </div>
+                        <div class="fs-1 text-danger opacity-25">
+                            <i class="fas fa-temperature-high"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 湿度カード -->
+        <div class="col-12 col-md-6 col-lg-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h6 class="card-subtitle mb-2 text-muted">
+                                <i class="fas fa-tint text-info"></i> 湿度
+                            </h6>
+                            <h2 class="card-title mb-0" id="humidity-value">
+                                <span class="spinner-border spinner-border-sm" role="status"></span>
+                            </h2>
+                            <small class="text-muted" id="humidity-time">読み込み中...</small>
+                        </div>
+                        <div class="fs-1 text-info opacity-25">
+                            <i class="fas fa-droplet"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 給水圧カード -->
+        <div class="col-12 col-md-6 col-lg-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-3 text-muted">
+                        <i class="fas fa-water text-primary"></i> 給水タンク
+                    </h6>
+                    <h2 class="card-title mb-2 text-center" id="supply-value">
+                        <span class="spinner-border spinner-border-sm" role="status"></span>
+                    </h2>
+                    
+                    <!-- プログレスバー -->
+                    <div class="mb-2">
+                        <div class="progress" style="height: 20px;">
+                            <div id="supply-progress" class="progress-bar progress-bar-striped progress-bar-animated" 
+                                 role="progressbar" style="width: 0%">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- ステータス -->
+                    <div id="supply-status" class="text-center">
+                        <small class="text-muted">読み込み中...</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 排水圧カード -->
+        <div class="col-12 col-md-6 col-lg-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-3 text-muted">
+                        <i class="fas fa-recycle text-warning"></i> 排水タンク
+                    </h6>
+                    <h2 class="card-title mb-2 text-center" id="drain-value">
+                        <span class="spinner-border spinner-border-sm" role="status"></span>
+                    </h2>
+                    
+                    <!-- プログレスバー -->
+                    <div class="mb-2">
+                        <div class="progress" style="height: 20px;">
+                            <div id="drain-progress" class="progress-bar progress-bar-striped progress-bar-animated" 
+                                 role="progressbar" style="width: 0%">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- ステータス -->
+                    <div id="drain-status" class="text-center">
+                        <small class="text-muted">読み込み中...</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <!-- 最新画像 -->
+        <div class="col-12 col-lg-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-camera text-success"></i> 最新画像
+                    </h5>
+                </div>
+                <div class="card-body text-center">
+                    <div id="latest-image-container">
+                        <div class="spinner-border text-success" role="status">
+                            <span class="visually-hidden">読み込み中...</span>
+                        </div>
+                        <p class="text-muted mt-2">画像を読み込んでいます...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 次回スケジュール -->
+        <div class="col-12 col-lg-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-clock text-success"></i> 次回スケジュール
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="next-schedules-container">
+                        <div class="text-center">
+                            <div class="spinner-border text-success" role="status">
+                                <span class="visually-hidden">読み込み中...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 最近のアラート -->
+    <div class="row mt-3">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-exclamation-triangle text-warning"></i> 最近のアラート
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="recent-alerts-container">
+                        <div class="text-center">
+                            <div class="spinner-border text-success" role="status">
+                                <span class="visually-hidden">読み込み中...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// ダッシュボードデータの更新
+function updateDashboard() {
+    fetch('/api/dashboard-data')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateSensorCards(data.sensor_data);
+                updateLatestImage(data.latest_image);
+                updateNextSchedules(data.next_schedules);
+                updateRecentAlerts(data.alerts);
+            } else {
+                console.error('Dashboard data error:', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Failed to fetch dashboard data:', error);
+        });
+}
+
+// センサーカードの更新
+function updateSensorCards(sensorData) {
+    if (!sensorData) {
+        document.getElementById('temp-value').innerHTML = '<small class="text-muted">データなし</small>';
+        document.getElementById('humidity-value').innerHTML = '<small class="text-muted">データなし</small>';
+        document.getElementById('supply-value').innerHTML = '<small class="text-muted">データなし</small>';
+        document.getElementById('drain-value').innerHTML = '<small class="text-muted">データなし</small>';
+        return;
+    }
+
+    // 温度
+    if (sensorData.temperature !== null) {
+        document.getElementById('temp-value').textContent = sensorData.temperature + '℃';
+    } else {
+        document.getElementById('temp-value').innerHTML = '<small class="text-muted">N/A</small>';
+    }
+
+    // 湿度
+    if (sensorData.humidity !== null) {
+        document.getElementById('humidity-value').textContent = sensorData.humidity + '%';
+    } else {
+        document.getElementById('humidity-value').innerHTML = '<small class="text-muted">N/A</small>';
+    }
+
+    // タイムスタンプ
+    const timestamp = new Date(sensorData.timestamp);
+    const timeStr = timestamp.toLocaleTimeString('ja-JP');
+    document.getElementById('temp-time').textContent = timeStr;
+    document.getElementById('humidity-time').textContent = timeStr;
+    
+    // 給水タンク（視覚的表示）
+    if (sensorData.supply_pressure !== null) {
+        updateSupplyTank(sensorData.supply_pressure, 90.0);
+    } else {
+        document.getElementById('supply-value').innerHTML = '<small class="text-muted">N/A</small>';
+        document.getElementById('supply-status').innerHTML = '<small class="text-muted">データなし</small>';
+    }
+    
+    // 排水タンク（視覚的表示）
+    if (sensorData.drain_pressure !== null) {
+        updateDrainTank(sensorData.drain_pressure, 150.0);
+    } else {
+        document.getElementById('drain-value').innerHTML = '<small class="text-muted">N/A</small>';
+        document.getElementById('drain-status').innerHTML = '<small class="text-muted">データなし</small>';
+    }
+}
+
+// 給水タンク更新
+function updateSupplyTank(pressure, threshold) {
+    const valueElement = document.getElementById('supply-value');
+    const progressElement = document.getElementById('supply-progress');
+    const statusElement = document.getElementById('supply-status');
+    
+    valueElement.textContent = `${pressure} kPa`;
+    
+    // プログレスバー（70-110 kPaの範囲を0-100%にマップ）
+    const minPressure = 70;
+    const maxPressure = 110;
+    const percentage = Math.max(0, Math.min(100, ((pressure - minPressure) / (maxPressure - minPressure)) * 100));
+    progressElement.style.width = `${percentage}%`;
+    
+    // 色とステータス
+    if (pressure < threshold) {
+        progressElement.className = 'progress-bar progress-bar-striped progress-bar-animated bg-danger';
+        statusElement.innerHTML = '<small class="text-danger"><i class="fas fa-exclamation-triangle"></i> 水圧低下</small>';
+    } else if (pressure < threshold + 5) {
+        progressElement.className = 'progress-bar progress-bar-striped progress-bar-animated bg-warning';
+        statusElement.innerHTML = '<small class="text-warning"><i class="fas fa-exclamation-circle"></i> やや低下</small>';
+    } else {
+        progressElement.className = 'progress-bar progress-bar-striped progress-bar-animated bg-success';
+        statusElement.innerHTML = '<small class="text-success"><i class="fas fa-check-circle"></i> 正常</small>';
+    }
+}
+
+// 排水タンク更新
+function updateDrainTank(pressure, threshold) {
+    const valueElement = document.getElementById('drain-value');
+    const progressElement = document.getElementById('drain-progress');
+    const statusElement = document.getElementById('drain-status');
+    
+    valueElement.textContent = `${pressure} kPa`;
+    
+    // プログレスバー（80-160 kPaの範囲を0-100%にマップ）
+    const minPressure = 80;
+    const maxPressure = 160;
+    const percentage = Math.max(0, Math.min(100, ((pressure - minPressure) / (maxPressure - minPressure)) * 100));
+    progressElement.style.width = `${percentage}%`;
+    
+    // 色とステータス
+    if (pressure > threshold) {
+        progressElement.className = 'progress-bar progress-bar-striped progress-bar-animated bg-danger';
+        statusElement.innerHTML = '<small class="text-danger"><i class="fas fa-exclamation-triangle"></i> 水圧高</small>';
+    } else if (pressure > threshold - 10) {
+        progressElement.className = 'progress-bar progress-bar-striped progress-bar-animated bg-warning';
+        statusElement.innerHTML = '<small class="text-warning"><i class="fas fa-exclamation-circle"></i> やや高</small>';
+    } else {
+        progressElement.className = 'progress-bar progress-bar-striped progress-bar-animated bg-success';
+        statusElement.innerHTML = '<small class="text-success"><i class="fas fa-check-circle"></i> 正常</small>';
+    }
+}
+
+// 最新画像の更新
+function updateLatestImage(imageData) {
+    const container = document.getElementById('latest-image-container');
+    
+    if (!imageData || !imageData.image_path) {
+        container.innerHTML = '<p class="text-muted">画像がありません</p>';
+        return;
+    }
+
+    const timestamp = new Date(imageData.timestamp);
+    const dateStr = timestamp.toLocaleString('ja-JP');
+    
+    container.innerHTML = `
+        <img src="/${imageData.image_path}" class="img-fluid rounded" alt="最新画像" style="max-height: 300px;">
+        <p class="text-muted mt-2"><small>撮影日時: ${dateStr}</small></p>
+    `;
+}
+
+// 次回スケジュールの更新
+function updateNextSchedules(schedules) {
+    const container = document.getElementById('next-schedules-container');
+    
+    if (!schedules || schedules.length === 0) {
+        container.innerHTML = '<p class="text-muted">スケジュールがありません</p>';
+        return;
+    }
+
+    let html = '<ul class="list-group list-group-flush">';
+    schedules.forEach(schedule => {
+        const icon = getJobIcon(schedule.job_type);
+        const label = getJobLabel(schedule.job_type);
+        html += `
+            <li class="list-group-item">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <i class="${icon}"></i> ${label}
+                        <small class="text-muted d-block">Layer ${schedule.layer_id}</small>
+                    </div>
+                    <span class="badge bg-success">${schedule.exec_time}</span>
+                </div>
+            </li>
+        `;
+    });
+    html += '</ul>';
+    container.innerHTML = html;
+}
+
+// 最近のアラートの更新
+function updateRecentAlerts(alerts) {
+    const container = document.getElementById('recent-alerts-container');
+    
+    if (!alerts || alerts.length === 0) {
+        container.innerHTML = '<p class="text-muted">アラートはありません</p>';
+        return;
+    }
+
+    let html = '<div class="list-group">';
+    alerts.forEach(alert => {
+        const badgeClass = getLogLevelBadge(alert.log_level);
+        const timestamp = new Date(alert.timestamp);
+        const timeStr = timestamp.toLocaleString('ja-JP');
+        
+        html += `
+            <div class="list-group-item">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="flex-grow-1">
+                        <span class="badge ${badgeClass} me-2">${alert.log_level}</span>
+                        <strong>Layer ${alert.layer_id}</strong>
+                        <p class="mb-1">${alert.message}</p>
+                        <small class="text-muted">${timeStr}</small>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+// ヘルパー関数
+function getJobIcon(jobType) {
+    const icons = {
+        'camera': 'fas fa-camera text-primary',
+        'sensor': 'fas fa-thermometer-half text-danger',
+        'water': 'fas fa-tint text-info'
+    };
+    return icons[jobType] || 'fas fa-cog';
+}
+
+function getJobLabel(jobType) {
+    const labels = {
+        'camera': '写真撮影',
+        'sensor': 'センサー測定',
+        'water': '水やり'
+    };
+    return labels[jobType] || jobType;
+}
+
+function getLogLevelBadge(logLevel) {
+    const badges = {
+        'CRITICAL': 'bg-danger',
+        'ERROR': 'bg-danger',
+        'WARNING': 'bg-warning',
+        'INFO': 'bg-info'
+    };
+    return badges[logLevel] || 'bg-secondary';
+}
+
+// 初回読み込み
+updateDashboard();
+
+// 10秒ごとに自動更新
+setInterval(updateDashboard, 10000);
+</script>
+{% endblock %}
+

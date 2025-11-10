@@ -1,0 +1,281 @@
+/* ===== Smart Grow System カスタムスタイル ===== */
+
+/* 全体設定 */
+:root {
+    --primary-green: #198754;
+    --secondary-green: #20c997;
+    --light-bg: #f8f9fa;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--light-bg);
+}
+
+/* ナビゲーションバー */
+.navbar-brand {
+    font-weight: bold;
+    font-size: 1.3rem;
+}
+
+.navbar-nav .nav-link {
+    transition: all 0.3s ease;
+    margin: 0 0.2rem;
+}
+
+.navbar-nav .nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 5px;
+}
+
+.navbar-nav .nav-link.active {
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 5px;
+}
+
+/* カード */
+.card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+
+.card-header {
+    border-bottom: 2px solid var(--primary-green);
+}
+
+/* センサー値の大きな表示 */
+.card-title {
+    font-weight: bold;
+}
+
+/* ボタン */
+.btn {
+    transition: all 0.3s ease;
+}
+
+.btn:hover {
+    transform: scale(1.05);
+}
+
+/* バッジ */
+.badge {
+    font-weight: 500;
+}
+
+/* スピナー（読み込み中） */
+.spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+}
+
+/* リストグループ */
+.list-group-item {
+    border-left: 3px solid transparent;
+    transition: border-color 0.3s ease;
+}
+
+.list-group-item:hover {
+    border-left-color: var(--primary-green);
+    background-color: rgba(25, 135, 84, 0.05);
+}
+
+/* フッター */
+footer {
+    margin-top: auto;
+}
+
+/* 画像ギャラリー用 */
+.gallery-image {
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.gallery-image:hover {
+    transform: scale(1.05);
+}
+
+/* モーダル画像 */
+.modal-content img {
+    max-width: 100%;
+    height: auto;
+}
+
+/* レスポンシブ調整 */
+@media (max-width: 768px) {
+    .navbar-brand {
+        font-size: 1.1rem;
+    }
+    
+    .navbar-nav .nav-link {
+        padding: 0.5rem 1rem;
+    }
+    
+    h1.display-6 {
+        font-size: 1.5rem;
+    }
+    
+    .card-body h2 {
+        font-size: 1.5rem;
+    }
+}
+
+/* テーブル */
+.table-hover tbody tr {
+    transition: background-color 0.2s ease;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(25, 135, 84, 0.05);
+}
+
+/* グラフコンテナ */
+.chart-container {
+    position: relative;
+    height: 350px;
+    margin-bottom: 1rem;
+}
+
+@media (min-width: 768px) {
+    .chart-container {
+        height: 450px;
+    }
+}
+
+@media (min-width: 1200px) {
+    .chart-container {
+        height: 500px;
+    }
+}
+
+/* アラート通知 */
+.alert {
+    border-left: 4px solid;
+}
+
+.alert-danger {
+    border-left-color: #dc3545;
+}
+
+.alert-warning {
+    border-left-color: #ffc107;
+}
+
+.alert-info {
+    border-left-color: #0dcaf0;
+}
+
+/* フォーム */
+.form-label {
+    font-weight: 500;
+    color: #495057;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--primary-green);
+    box-shadow: 0 0 0 0.2rem rgba(25, 135, 84, 0.25);
+}
+
+/* ログレベルのカラー */
+.log-critical {
+    color: #dc3545;
+    font-weight: bold;
+}
+
+.log-error {
+    color: #dc3545;
+}
+
+.log-warning {
+    color: #ffc107;
+}
+
+.log-info {
+    color: #0dcaf0;
+}
+
+/* ページネーション */
+.pagination .page-link {
+    color: var(--primary-green);
+}
+
+.pagination .page-item.active .page-link {
+    background-color: var(--primary-green);
+    border-color: var(--primary-green);
+}
+
+/* スイッチ（トグル） */
+.form-check-input:checked {
+    background-color: var(--primary-green);
+    border-color: var(--primary-green);
+}
+
+/* カスタムスクロールバー（Webkit系ブラウザ） */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--primary-green);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #157347;
+}
+
+/* アニメーション */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.fade-in {
+    animation: fadeIn 0.5s ease;
+}
+
+/* ステータスインジケーター */
+.status-indicator {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 5px;
+}
+
+.status-active {
+    background-color: #28a745;
+    animation: pulse 2s infinite;
+}
+
+.status-inactive {
+    background-color: #6c757d;
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(40, 167, 69, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0);
+    }
+}
+
