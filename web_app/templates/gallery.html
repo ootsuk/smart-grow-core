@@ -491,7 +491,9 @@ function showNoImageMessage() {
 
 // センサーデータを取得
 function fetchSensorData(timestamp) {
-    // タイムスタンプに近いセンサーデータを取得
+    // TODO: タイムスタンプに近いセンサーデータを取得する実装
+    // 現在は最新データを取得しているが、画像撮影時刻に最も近いデータを取得すべき
+    // 実装例: fetch(`/api/sensor-data-at-time?timestamp=${timestamp}`)
     fetch(`/api/dashboard-data`)
         .then(response => response.json())
         .then(result => {
