@@ -5,6 +5,9 @@ from pathlib import Path
 # 親ディレクトリをパスに追加（database, config等にアクセスするため）
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+# gRPC DNS解決の設定（Gemini API接続のため、importより前に設定）
+os.environ['GRPC_DNS_RESOLVER'] = 'native'
+
 from flask import Flask, render_template, jsonify, request, send_from_directory
 from database.db_manager import (
     select_system_config, 
@@ -22,10 +25,12 @@ app = Flask(__name__)
 # Gemini API の設定
 if LLM_API_KEY:
     genai.configure(api_key=LLM_API_KEY)
-    gemini_model = genai.GenerativeModel('gemini-1.5-flash')
+    # 最新のモデル名に変更（gemini-1.5-flashは非推奨）
+    gemini_model = genai.GenerativeModel('gemini-2.5-flash')
+    print("✅ Gemini API初期化成功: gemini-2.5-flash")
 else:
     gemini_model = None
-    print("Warning: LLM_API_KEY が設定されていません。AI機能は無効です。")
+    print("⚠️ Warning: LLM_API_KEY が設定されていません。AI機能は無効です。")
 
 # 画像ファイルを配信するためのルート
 @app.route('/plant_images/<path:filename>')
