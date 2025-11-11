@@ -13,6 +13,10 @@ body {
 }
 
 /* ナビゲーションバー */
+.navbar {
+    z-index: 1030;
+}
+
 .navbar-brand {
     font-weight: bold;
     font-size: 1.3rem;
@@ -31,6 +35,43 @@ body {
 .navbar-nav .nav-link.active {
     background-color: rgba(255, 255, 255, 0.2);
     border-radius: 5px;
+}
+
+/* モバイルメニューのオーバーレイ表示 */
+@media (max-width: 991px) {
+    .navbar-collapse {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background-color: #198754;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 1029;
+        border-radius: 0 0 0.5rem 0.5rem;
+    }
+    
+    .navbar-collapse.show {
+        animation: slideDown 0.3s ease-out;
+    }
+    
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .navbar-collapse .navbar-nav {
+        padding: 0.5rem 0;
+    }
+    
+    .navbar-nav .nav-link {
+        padding: 0.75rem 1.5rem;
+    }
 }
 
 /* カード */
