@@ -298,17 +298,17 @@ async function sendMessage() {
         // 🔥 送信直前に最新のセンサーデータを取得
         await loadSensorData();
         
-        // システムメッセージ（送信データ）を表示
-        addSystemMessage(currentSensorData, selectedImage);
-        
-        // タイピングインジケーター表示
-        showTypingIndicator();
-        
         // センサーデータからタンク圧力を除外
         const sensorDataWithoutTank = currentSensorData ? {
             temperature: currentSensorData.temperature,
             humidity: currentSensorData.humidity
         } : null;
+        
+        // システムメッセージ（送信データ）を表示（タンク圧力なし）
+        addSystemMessage(sensorDataWithoutTank, selectedImageFilename);
+        
+        // タイピングインジケーター表示
+        showTypingIndicator();
         
         // APIリクエスト
         const requestData = {
