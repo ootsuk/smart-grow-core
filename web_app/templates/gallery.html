@@ -418,6 +418,9 @@ function updateModalContent(dateStr) {
     document.getElementById('modal-date').textContent = 
         `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
     
+    // AI解析レポートセクションを非表示にする（日付が変わったら一旦隠す）
+    document.getElementById('ai-report-section').style.display = 'none';
+    
     // 画像がある場合は表示、ない場合はメッセージ表示
     if (images.length > 0) {
         showImage(images[0], images);

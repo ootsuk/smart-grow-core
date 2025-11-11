@@ -3,6 +3,9 @@
 // グローバル変数
 let currentSensorData = null;
 let imagePreviewModal = null;
+let imagesByDate = {}; // 日付ごとの画像データ
+let allChatImages = []; // 全画像データ
+let selectedImageFilename = null; // 選択された画像のファイル名
 
 // ページ読み込み時の初期化
 document.addEventListener('DOMContentLoaded', function() {
@@ -51,35 +54,110 @@ function setupEventListeners() {
         });
     });
     
-    // 画像選択
-    document.getElementById('image-selector').addEventListener('change', function() {
-        updateImagePreview();
-    });
 }
 
-// 画像リストの読み込み
+// 画像リストの読み込み（カレンダー用）
 async function loadImageList() {
     try {
-        // Layer 1の画像を取得（必要に応じて変更可能）
+        // Layer 1の画像を取得
         const response = await fetch('/api/images?layer_id=1');
         const data = await response.json();
         
-        const selector = document.getElementById('image-selector');
-        selector.innerHTML = '<option value="">選択なし</option>';
+        allChatImages = data.images || [];
+        imagesByDate = {};
         
-        if (data.images && data.images.length > 0) {
-            data.images.forEach(img => {
-                const option = document.createElement('option');
-                option.value = img.filename;
-                // timestampから日付を抽出（YYYY-MM-DD HH:MM:SS形式）
-                const date = img.timestamp ? img.timestamp.split('T')[0] : 'N/A';
-                option.textContent = `${date} - ${img.filename}`;
-                selector.appendChild(option);
-            });
-        }
+        // 日付ごとにグループ化
+        allChatImages.forEach(img => {
+            const date = img.timestamp.split('T')[0]; // YYYY-MM-DD
+            if (!imagesByDate[date]) {
+                imagesByDate[date] = [];
+            }
+            imagesByDate[date].push(img);
+        });
+        
+        // カレンダーを描画
+        renderMiniCalendar();
+        
     } catch (error) {
         console.error('画像リスト読み込みエラー:', error);
     }
+}
+
+// ミニカレンダーの描画
+function renderMiniCalendar() {
+    const container = document.getElementById('mini-calendar');
+    
+    // 最新の画像の日付を取得
+    const latestDate = allChatImages.length > 0 ? new Date(allChatImages[0].timestamp) : new Date();
+    const year = latestDate.getFullYear();
+    const month = latestDate.getMonth();
+    
+    // カレンダーHTML
+    let html = `
+        <div class="text-center mb-2">
+            <strong>${year}年${month + 1}月</strong>
+        </div>
+        <div class="mini-calendar-grid">
+    `;
+    
+    // 曜日ヘッダー
+    const weekDays = ['日', '月', '火', '水', '木', '金', '土'];
+    weekDays.forEach(day => {
+        html += `<div class="mini-cal-header">${day}</div>`;
+    });
+    
+    // 月の最初の日と最後の日
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const startDayOfWeek = firstDay.getDay();
+    const daysInMonth = lastDay.getDate();
+    
+    // 空白セル
+    for (let i = 0; i < startDayOfWeek; i++) {
+        html += `<div class="mini-cal-day"></div>`;
+    }
+    
+    // 日付セル
+    for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const hasImage = imagesByDate[dateStr] && imagesByDate[dateStr].length > 0;
+        const isToday = dateStr === new Date().toISOString().split('T')[0];
+        
+        let className = 'mini-cal-day';
+        if (hasImage) className += ' has-image';
+        if (isToday) className += ' today';
+        
+        html += `<div class="${className}" onclick="selectDateForAI('${dateStr}')">${day}</div>`;
+    }
+    
+    html += `</div>`;
+    container.innerHTML = html;
+}
+
+// 日付選択（AI用）
+function selectDateForAI(dateStr) {
+    const images = imagesByDate[dateStr];
+    if (!images || images.length === 0) {
+        alert('この日の画像はありません');
+        return;
+    }
+    
+    // 最初の画像を選択
+    const selectedImage = images[0];
+    selectedImageFilename = selectedImage.filename;
+    
+    // プレビュー表示
+    const preview = document.getElementById('selected-image-preview');
+    const previewImg = preview.querySelector('img');
+    const dateDisplay = document.getElementById('selected-image-date');
+    
+    previewImg.src = `/plant_images/layer_1/${selectedImage.filename}`;
+    dateDisplay.textContent = new Date(selectedImage.timestamp).toLocaleDateString('ja-JP');
+    preview.style.display = 'block';
+    
+    // カレンダーの選択状態を更新
+    document.querySelectorAll('.mini-cal-day').forEach(el => el.classList.remove('selected'));
+    event.target.classList.add('selected');
 }
 
 // センサーデータの読み込み
@@ -186,27 +264,10 @@ function addSystemMessage(sensorData, imagePath) {
     scrollToBottom();
 }
 
-// 画像プレビューの更新
-function updateImagePreview() {
-    const selector = document.getElementById('image-selector');
-    const preview = document.getElementById('selected-image-preview');
-    const previewImg = preview.querySelector('img');
-    
-    if (selector.value) {
-        // Layer 1を想定（必要に応じて動的に変更）
-        const imagePath = `/plant_images/layer_1/${selector.value}`;
-        previewImg.src = imagePath;
-        preview.style.display = 'block';
-    } else {
-        preview.style.display = 'none';
-    }
-}
-
 // 画像プレビューモーダルを表示
 function showImagePreview() {
-    const selector = document.getElementById('image-selector');
-    if (selector.value) {
-        const imagePath = `/plant_images/layer_1/${selector.value}`;
+    if (selectedImageFilename) {
+        const imagePath = `/plant_images/layer_1/${selectedImageFilename}`;
         document.getElementById('modal-preview-image').src = imagePath;
         imagePreviewModal.show();
     }
@@ -222,11 +283,9 @@ async function sendMessage() {
     }
     
     const sendBtn = document.getElementById('send-btn');
-    const imageSelector = document.getElementById('image-selector');
-    const selectedImage = imageSelector.value;
     
     // ユーザーメッセージを表示
-    addUserMessage(message, selectedImage);
+    addUserMessage(message, selectedImageFilename);
     
     // 入力欄をクリア
     input.value = '';
@@ -245,11 +304,17 @@ async function sendMessage() {
         // タイピングインジケーター表示
         showTypingIndicator();
         
+        // センサーデータからタンク圧力を除外
+        const sensorDataWithoutTank = currentSensorData ? {
+            temperature: currentSensorData.temperature,
+            humidity: currentSensorData.humidity
+        } : null;
+        
         // APIリクエスト
         const requestData = {
             message: message,
-            image_filename: selectedImage || null,
-            sensor_data: currentSensorData
+            image_filename: selectedImageFilename || null,
+            sensor_data: sensorDataWithoutTank
         };
         
         const response = await fetch('/api/ai-chat', {

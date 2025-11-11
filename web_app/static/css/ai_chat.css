@@ -1,12 +1,71 @@
-/* AI Chat Styles */
+/* AI Chat ページのスタイル */
 
-.page-header {
-    margin-bottom: 1.5rem;
+/* ミニカレンダー */
+.mini-calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    margin-top: 10px;
 }
 
+.mini-cal-header {
+    text-align: center;
+    font-weight: bold;
+    padding: 8px 4px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    color: #6c757d;
+}
+
+.mini-cal-day {
+    text-align: center;
+    padding: 10px 4px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.9rem;
+    border: 1px solid transparent;
+}
+
+.mini-cal-day:hover {
+    background-color: #e9ecef;
+}
+
+.mini-cal-day.has-image {
+    background-color: #d1e7dd;
+    border-color: #198754;
+    font-weight: 600;
+    color: #198754;
+}
+
+.mini-cal-day.has-image:hover {
+    background-color: #badbcc;
+    transform: scale(1.05);
+}
+
+.mini-cal-day.selected {
+    background-color: #198754;
+    color: white;
+    border-color: #198754;
+    font-weight: bold;
+}
+
+.mini-cal-day.today {
+    border: 2px solid #0dcaf0;
+}
+
+.mini-cal-day:empty {
+    cursor: default;
+}
+
+.mini-cal-day:empty:hover {
+    background-color: transparent;
+}
+
+/* チャットカード */
 .chat-card {
-    height: calc(100vh - 400px);
-    min-height: 400px;
+    height: 60vh;
     display: flex;
     flex-direction: column;
 }
@@ -15,8 +74,7 @@
     flex: 1;
     overflow-y: auto;
     padding: 1.5rem;
-    background: linear-gradient(to bottom, #f8f9fa 0%, #ffffff 100%);
-    scroll-behavior: smooth;
+    background-color: #f8f9fa;
 }
 
 /* メッセージスタイル */
@@ -26,15 +84,12 @@
     animation: fadeIn 0.3s ease-in;
 }
 
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+.ai-message {
+    justify-content: flex-start;
+}
+
+.user-message {
+    justify-content: flex-end;
 }
 
 .message-avatar {
@@ -49,36 +104,32 @@
 }
 
 .ai-message .message-avatar {
-    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    background-color: #198754;
     color: white;
     margin-right: 0.75rem;
 }
 
-.user-message {
-    flex-direction: row-reverse;
-}
-
 .user-message .message-avatar {
-    background: linear-gradient(135deg, #0d6efd 0%, #0dcaf0 100%);
+    background-color: #0d6efd;
     color: white;
     margin-left: 0.75rem;
+    order: 2;
 }
 
 .message-bubble {
     max-width: 75%;
     padding: 1rem 1.25rem;
     border-radius: 1rem;
-    position: relative;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
 .ai-bubble {
-    background: white;
-    border: 1px solid #e9ecef;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    background-color: white;
+    border: 1px solid #dee2e6;
 }
 
 .user-bubble {
-    background: linear-gradient(135deg, #0d6efd 0%, #0dcaf0 100%);
+    background-color: #0d6efd;
     color: white;
 }
 
@@ -86,208 +137,97 @@
     line-height: 1.6;
 }
 
-.message-content strong {
-    display: block;
-    margin-bottom: 0.5rem;
-    color: #28a745;
+.message-content p:last-child {
+    margin-bottom: 0;
 }
 
-.user-bubble .message-content {
-    color: white;
-}
-
-/* Markdown表示スタイル (GitHub風) */
-.markdown-body {
-    font-size: 0.95rem;
-}
-
-.markdown-body h1,
-.markdown-body h2,
-.markdown-body h3,
-.markdown-body h4 {
-    margin-top: 1.5rem;
-    margin-bottom: 1rem;
-    font-weight: 600;
-    border-bottom: 1px solid #e9ecef;
-    padding-bottom: 0.5rem;
-}
-
-.markdown-body h1 {
-    font-size: 1.5rem;
-}
-
-.markdown-body h2 {
+/* Markdown コンテンツ */
+.message-content h2 {
     font-size: 1.3rem;
+    margin-top: 1rem;
+    margin-bottom: 0.75rem;
+    border-bottom: 2px solid #198754;
+    padding-bottom: 0.3rem;
 }
 
-.markdown-body h3 {
+.message-content h3 {
     font-size: 1.1rem;
+    margin-top: 0.8rem;
+    margin-bottom: 0.5rem;
+    color: #198754;
 }
 
-.markdown-body ul,
-.markdown-body ol {
-    padding-left: 1.5rem;
-    margin: 1rem 0;
+.message-content ul, .message-content ol {
+    margin-left: 1.5rem;
+    margin-bottom: 0.75rem;
 }
 
-.markdown-body li {
-    margin: 0.5rem 0;
+.message-content li {
+    margin-bottom: 0.3rem;
 }
 
-.markdown-body p {
-    margin: 1rem 0;
-}
-
-.markdown-body code {
-    background: #f6f8fa;
+.message-content code {
+    background-color: #f8f9fa;
     padding: 0.2rem 0.4rem;
     border-radius: 3px;
-    font-size: 85%;
-    color: #e83e8c;
+    font-size: 0.9em;
 }
 
-.markdown-body pre {
-    background: #f6f8fa;
+.message-content pre {
+    background-color: #f8f9fa;
     padding: 1rem;
     border-radius: 6px;
     overflow-x: auto;
-    border: 1px solid #e9ecef;
+    margin: 0.75rem 0;
 }
 
-.markdown-body pre code {
-    background: none;
+.message-content pre code {
+    background-color: transparent;
     padding: 0;
-    color: inherit;
 }
 
-.markdown-body blockquote {
-    border-left: 4px solid #28a745;
-    padding-left: 1rem;
-    margin: 1rem 0;
-    color: #6c757d;
-}
-
-.markdown-body table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 1rem 0;
-}
-
-.markdown-body table th,
-.markdown-body table td {
-    border: 1px solid #e9ecef;
-    padding: 0.5rem;
-}
-
-.markdown-body table th {
-    background: #f8f9fa;
-    font-weight: 600;
-}
-
-.markdown-body strong {
-    color: #28a745;
-    font-weight: 600;
-}
-
-.markdown-body a {
-    color: #0d6efd;
-    text-decoration: none;
-}
-
-.markdown-body a:hover {
-    text-decoration: underline;
-}
-
-/* 画像添付プレビュー */
-.attached-image {
-    max-width: 200px;
-    max-height: 150px;
-    border-radius: 8px;
-    margin-top: 0.5rem;
-    cursor: pointer;
-    transition: transform 0.2s;
-}
-
-.attached-image:hover {
-    transform: scale(1.05);
-}
-
-/* クイックアクションボタン */
-.quick-action-btn {
-    transition: all 0.2s;
-}
-
-.quick-action-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-}
-
-/* ローディング表示 */
+/* タイピングインジケーター */
 .typing-indicator {
-    display: flex;
-    gap: 0.3rem;
-    padding: 0.5rem;
+    display: inline-block;
 }
 
-.typing-dot {
+.typing-indicator span {
+    display: inline-block;
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: #28a745;
+    background-color: #6c757d;
+    margin: 0 2px;
     animation: typing 1.4s infinite;
 }
 
-.typing-dot:nth-child(2) {
+.typing-indicator span:nth-child(2) {
     animation-delay: 0.2s;
 }
 
-.typing-dot:nth-child(3) {
+.typing-indicator span:nth-child(3) {
     animation-delay: 0.4s;
 }
 
 @keyframes typing {
     0%, 60%, 100% {
         transform: translateY(0);
-        opacity: 0.7;
     }
     30% {
         transform: translateY(-10px);
+    }
+}
+
+/* アニメーション */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
         opacity: 1;
+        transform: translateY(0);
     }
-}
-
-/* レスポンシブ対応 */
-@media (max-width: 768px) {
-    .message-bubble {
-        max-width: 85%;
-    }
-    
-    .chat-card {
-        height: calc(100vh - 450px);
-    }
-    
-    .quick-action-btn {
-        font-size: 0.85rem;
-        padding: 0.25rem 0.5rem;
-    }
-}
-
-/* スクロールバースタイル */
-.chat-container::-webkit-scrollbar {
-    width: 8px;
-}
-
-.chat-container::-webkit-scrollbar-track {
-    background: #f8f9fa;
-}
-
-.chat-container::-webkit-scrollbar-thumb {
-    background: #28a745;
-    border-radius: 4px;
-}
-
-.chat-container::-webkit-scrollbar-thumb:hover {
-    background: #20c997;
 }
 
 /* システムメッセージ */
@@ -307,41 +247,33 @@
     box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
-.system-bubble .system-header {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+.system-bubble h6 {
     margin-bottom: 0.5rem;
     color: #6c757d;
-    font-size: 0.875rem;
-    font-weight: 600;
-}
-
-.system-bubble .system-content {
     font-size: 0.85rem;
-    color: #495057;
 }
 
-.system-bubble .data-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem;
-    margin-top: 0.5rem;
+.system-bubble .text-muted {
+    font-size: 0.85rem;
 }
 
-.system-bubble .data-item {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-}
-
-.system-bubble .data-item i {
-    font-size: 0.9rem;
-}
-
+/* レスポンシブ */
 @media (max-width: 768px) {
-    .system-bubble {
-        max-width: 95%;
+    .chat-card {
+        height: 50vh;
+    }
+    
+    .message-bubble {
+        max-width: 85%;
+    }
+    
+    .mini-cal-day {
+        padding: 8px 2px;
+        font-size: 0.8rem;
+    }
+    
+    .mini-cal-header {
+        font-size: 0.75rem;
+        padding: 6px 2px;
     }
 }
-
