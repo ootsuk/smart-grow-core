@@ -55,11 +55,14 @@ def execute_photo_job(layer_id: int):
     """
     指定された層 (layer_id) のカメラを起動し、撮影、保存、DB記録を行う。
     """
-    SAVE_DIR = os.path.join(BASE_SAVE_DIR, f"layer_{layer_id}")
+    # 絶対パスでディレクトリを作成
+    SAVE_DIR_ABS = os.path.join(BASE_SAVE_DIR, f"layer_{layer_id}")
+    # Web表示用の相対パス
+    SAVE_DIR_REL = f"plant_images/layer_{layer_id}"
     
     # 1. 保存ディレクトリを作成
-    if not os.path.exists(SAVE_DIR):
-        os.makedirs(SAVE_DIR)
+    if not os.path.exists(SAVE_DIR_ABS):
+        os.makedirs(SAVE_DIR_ABS)
 
     layer_info = select_layer_info(layer_id)
     
@@ -80,7 +83,7 @@ def execute_photo_job(layer_id: int):
     delay_sec = (layer_id - 1) * 2 
     
     if delay_sec > 0:
-        print(f"[{datetime.now()}] [CAMERA JOB] Layer {layer_id} は、リソース競合を避けるため {delay_sec} 秒待機します。")
+        print(f"[{datetime.datetime.now()}] [CAMERA JOB] Layer {layer_id} は、リソース競合を避けるため {delay_sec} 秒待機します。")
         sleep(delay_sec)
     
     cap = cv2.VideoCapture(camera_id)
@@ -113,9 +116,12 @@ def execute_photo_job(layer_id: int):
             return
         
         file_name = get_file_name()
-        relative_file_path = os.path.join(SAVE_DIR, file_name) 
+        # 絶対パス（ファイル保存用）
+        absolute_file_path = os.path.join(SAVE_DIR_ABS, file_name)
+        # 相対パス（DB/Web表示用）
+        relative_file_path = f"{SAVE_DIR_REL}/{file_name}"
         
-        save_image(frame, relative_file_path)
+        save_image(frame, absolute_file_path)
         
         insert_camera_log(layer_id, relative_file_path)
         
@@ -125,7 +131,7 @@ def execute_photo_job(layer_id: int):
             message='Camera job finished successfully.', 
             details=f'Path: {relative_file_path}')
         
-        delete_old_images(SAVE_DIR)
+        delete_old_images(SAVE_DIR_ABS)
         
         print(f"[CAMERA JOB] Layer {layer_id} の画像を {relative_file_path} に保存しました。")
         

@@ -15,7 +15,8 @@ def create_app():
     app.static_folder = 'static'
     
     # ルーティングを登録
+    # 注意: api_bpは自身で'/api'プレフィックスを持っているため、ここでは追加しない
     app.register_blueprint(ui_bp)
-    app.register_blueprint(api_bp, url_prefix='/api')
+    app.register_blueprint(api_bp)
 
     return app

@@ -120,10 +120,11 @@ def schedules():
     """スケジュール管理画面"""
     return render_template('schedules.html')
 
-@app.route('/settings')
-def settings():
-    """システム設定画面"""
-    return render_template('settings.html')
+# 設定ページは未実装のためコメントアウト
+# @app.route('/settings')
+# def settings():
+#     """システム設定画面"""
+#     return render_template('settings.html')
 
 @app.route('/logs')
 def logs():

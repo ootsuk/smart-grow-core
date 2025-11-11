@@ -23,7 +23,7 @@ def execute_pump_job(layer_id: int):
     #     return
 
     config = select_system_config() or {}
-    pump_pin = config.get("pump_gpio_pin", 17)
+    pump_pin = config.get("pump_gpio_sig", 17)
     duration = config.get("water_duration_sec", 10)
     
     print(f"[{datetime.now()}] [WATER JOB START] Layer {layer_id} の水ポンプ制御を開始します。")

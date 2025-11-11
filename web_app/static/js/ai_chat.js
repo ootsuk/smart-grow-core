@@ -229,11 +229,11 @@ async function loadSensorData() {
         const sensorData = data.sensor_data || {};
         currentSensorData = sensorData;
         
-        // システム情報の表示を更新（スペースを追加してN/A kPaのように表示）
-        const temp = sensorData.temperature ? `${sensorData.temperature}℃` : 'N/A';
-        const humid = sensorData.humidity ? `${sensorData.humidity}%` : 'N/A';
-        const supply = sensorData.supply_pressure ? `${sensorData.supply_pressure} kPa` : 'N/A';
-        const drain = sensorData.drain_pressure ? `${sensorData.drain_pressure} kPa` : 'N/A';
+        // システム情報の表示を更新（null/undefinedチェックに変更して0を許容）
+        const temp = (sensorData.temperature !== null && sensorData.temperature !== undefined) ? `${sensorData.temperature}℃` : 'N/A';
+        const humid = (sensorData.humidity !== null && sensorData.humidity !== undefined) ? `${sensorData.humidity}%` : 'N/A';
+        const supply = (sensorData.supply_pressure !== null && sensorData.supply_pressure !== undefined) ? `${sensorData.supply_pressure} kPa` : 'N/A';
+        const drain = (sensorData.drain_pressure !== null && sensorData.drain_pressure !== undefined) ? `${sensorData.drain_pressure} kPa` : 'N/A';
         
         // タイムスタンプを表示形式に変換
         let timeStr = '';
@@ -265,11 +265,11 @@ function addSystemMessage(sensorData, imagePath) {
         `;
     }
     
-    // センサーデータ
-    const temp = sensorData.temperature ? `${sensorData.temperature}℃` : 'N/A';
-    const humid = sensorData.humidity ? `${sensorData.humidity}%` : 'N/A';
-    const supply = sensorData.supply_pressure ? `${sensorData.supply_pressure} kPa` : 'N/A';
-    const drain = sensorData.drain_pressure ? `${sensorData.drain_pressure} kPa` : 'N/A';
+    // センサーデータ（null/undefinedチェックに変更して0を許容）
+    const temp = (sensorData.temperature !== null && sensorData.temperature !== undefined) ? `${sensorData.temperature}℃` : 'N/A';
+    const humid = (sensorData.humidity !== null && sensorData.humidity !== undefined) ? `${sensorData.humidity}%` : 'N/A';
+    const supply = (sensorData.supply_pressure !== null && sensorData.supply_pressure !== undefined) ? `${sensorData.supply_pressure} kPa` : 'N/A';
+    const drain = (sensorData.drain_pressure !== null && sensorData.drain_pressure !== undefined) ? `${sensorData.drain_pressure} kPa` : 'N/A';
     
     // 測定時刻
     let timeStr = 'N/A';
