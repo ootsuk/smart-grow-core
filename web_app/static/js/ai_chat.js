@@ -259,8 +259,8 @@ function addSystemMessage(sensorData, imagePath) {
     if (imagePath) {
         imageHTML = `
             <div class="data-item">
-                <i class="fas fa-image text-primary"></i>
-                <span>${imagePath}</span>
+                <img src="/plant_images/layer_1/${imagePath}" class="rounded mb-2" style="max-width: 120px; max-height: 80px; object-fit: cover; display: block;">
+                <small class="text-muted">📷 ${imagePath}</small>
             </div>
         `;
     }
@@ -392,6 +392,9 @@ async function sendMessage() {
             // AIメッセージを表示
             addAIMessage(data.response);
         }
+        
+        // 添付画像プレビューを自動削除（送信成功後）
+        removeAttachedImage();
         
     } catch (error) {
         console.error('メッセージ送信エラー:', error);
