@@ -54,6 +54,10 @@ function setupEventListeners() {
     // 画像選択
     document.getElementById('image-selector').addEventListener('change', function() {
         updateImagePreview();
+        // プレビュー更新
+        if (currentSensorData) {
+            updateDataPreview(currentSensorData);
+        }
     });
 }
 
@@ -106,11 +110,46 @@ async function loadSensorData() {
         }
         
         const infoText = `温度: ${temp}, 湿度: ${humid}, 給水タンク: ${supply}, 排水タンク: ${drain}${timeStr}`;
-        document.getElementById('system-info-display').textContent = infoText;
+        
+        // プレビュー表示を更新
+        updateDataPreview(sensorData);
         
     } catch (error) {
         console.error('センサーデータ読み込みエラー:', error);
-        document.getElementById('system-info-display').textContent = 'センサーデータの取得に失敗しました';
+    }
+}
+
+// 送信データプレビューを更新
+function updateDataPreview(sensorData) {
+    // 画像情報
+    const imageSelector = document.getElementById('image-selector');
+    const previewImageText = document.getElementById('preview-image-text');
+    
+    if (imageSelector.value) {
+        const selectedOption = imageSelector.options[imageSelector.selectedIndex];
+        previewImageText.innerHTML = `<small class="text-dark"><strong>${selectedOption.text}</strong></small>`;
+    } else {
+        previewImageText.innerHTML = `<small class="text-secondary">選択なし</small>`;
+    }
+    
+    // 環境データ
+    document.getElementById('preview-temp').textContent = sensorData.temperature ? `${sensorData.temperature}℃` : 'N/A';
+    document.getElementById('preview-humid').textContent = sensorData.humidity ? `${sensorData.humidity}%` : 'N/A';
+    document.getElementById('preview-supply').textContent = sensorData.supply_pressure ? `${sensorData.supply_pressure} kPa` : 'N/A';
+    document.getElementById('preview-drain').textContent = sensorData.drain_pressure ? `${sensorData.drain_pressure} kPa` : 'N/A';
+    
+    // 測定時刻
+    if (sensorData.timestamp) {
+        const dt = new Date(sensorData.timestamp);
+        document.getElementById('preview-time').textContent = dt.toLocaleString('ja-JP', {
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        });
+    } else {
+        document.getElementById('preview-time').textContent = 'N/A';
     }
 }
 

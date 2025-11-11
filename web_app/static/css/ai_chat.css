@@ -290,3 +290,26 @@
     background: #20c997;
 }
 
+/* 送信データプレビュー */
+#dataPreview .card-body {
+    padding: 0.75rem;
+    font-size: 0.875rem;
+}
+
+#dataPreview .row {
+    font-size: 0.85rem;
+}
+
+#dataPreview strong {
+    color: #28a745;
+}
+
+/* 折りたたみアイコンのアニメーション */
+#collapse-icon {
+    transition: transform 0.3s ease;
+}
+
+[aria-expanded="true"] #collapse-icon {
+    transform: rotate(180deg);
+}
+
