@@ -13,6 +13,39 @@
         </div>
     </div>
 
+    <!-- システムアーキテクチャ説明 -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-primary">
+                <div class="card-header bg-primary text-white">
+                    <i class="fas fa-info-circle"></i> システムアーキテクチャ
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="fw-bold text-primary">
+                                <i class="fas fa-cog"></i> Layer 0（システム全体）
+                            </h6>
+                            <ul class="mb-0">
+                                <li><strong>📊 センサー測定</strong>: 温湿度 + タンク圧力（共通）</li>
+                                <li><strong>💧 給水ポンプ</strong>: 上から水を供給（全層共通）</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="fw-bold text-success">
+                                <i class="fas fa-layer-group"></i> Layer 1, 2, 3...（各栽培層）
+                            </h6>
+                            <ul class="mb-0">
+                                <li><strong>📷 カメラ撮影</strong>: 各層の豆苗を撮影</li>
+                                <li class="text-muted"><em>※ センサーデータはLayer 0を参照</em></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- フィルター -->
     <div class="row mb-3">
         <div class="col-12 col-md-6 mb-2">
@@ -241,7 +274,11 @@ function renderSchedules() {
 // スケジュールカードを作成
 function createScheduleCard(schedule) {
     const card = document.createElement('div');
-    card.className = 'card mb-3 shadow-sm';
+    
+    // Layer 0とLayer 1+で色を変える
+    const isSystemLayer = schedule.layer_id === 0;
+    const borderColor = isSystemLayer ? 'border-primary' : 'border-success';
+    card.className = `card mb-3 shadow-sm ${borderColor}`;
     
     const jobIcon = getJobIcon(schedule.job_type);
     const jobLabel = getJobLabel(schedule.job_type);
@@ -257,14 +294,36 @@ function createScheduleCard(schedule) {
         ? '<span class="badge bg-success">有効</span>' 
         : '<span class="badge bg-secondary">無効</span>';
     
+    // Layer badge
+    const layerBadge = isSystemLayer 
+        ? '<span class="badge bg-primary"><i class="fas fa-cog"></i> システム全体</span>'
+        : `<span class="badge bg-success"><i class="fas fa-layer-group"></i> ${schedule.layer_id}段目</span>`;
+    
+    // ジョブの説明
+    let jobDescription = '';
+    if (isSystemLayer) {
+        if (schedule.job_type === 'sensor') {
+            jobDescription = '<small class="text-muted d-block"><i class="fas fa-info-circle"></i> 温湿度 + タンク圧力を測定（全層共通）</small>';
+        } else if (schedule.job_type === 'water') {
+            jobDescription = '<small class="text-muted d-block"><i class="fas fa-info-circle"></i> 給水ポンプを起動（上から下へ循環）</small>';
+        }
+    } else {
+        if (schedule.job_type === 'camera') {
+            jobDescription = '<small class="text-muted d-block"><i class="fas fa-info-circle"></i> この層の豆苗を撮影</small>';
+        }
+    }
+    
     card.innerHTML = `
         <div class="card-body">
             <div class="row align-items-center">
-                <div class="col-12 col-md-6 mb-2 mb-md-0">
-                    <h5 class="mb-1">
-                        ${jobIcon} ${jobLabel}
-                    </h5>
-                    <small class="text-muted">Layer ${schedule.layer_id}</small>
+                <div class="col-12 col-md-5 mb-2 mb-md-0">
+                    <div class="d-flex align-items-center mb-1">
+                        <h5 class="mb-0 me-2">
+                            ${jobIcon} ${jobLabel}
+                        </h5>
+                        ${layerBadge}
+                    </div>
+                    ${jobDescription}
                 </div>
                 
                 <div class="col-6 col-md-2 mb-2 mb-md-0">
@@ -276,7 +335,7 @@ function createScheduleCard(schedule) {
                     ${statusBadge}
                 </div>
                 
-                <div class="col-12 col-md-2 text-md-end">
+                <div class="col-12 col-md-3 text-md-end">
                     <div class="btn-group" role="group">
                         <button class="btn btn-sm ${isEnabled ? 'btn-success' : 'btn-outline-secondary'}" 
                                 onclick="toggleSchedule(${schedule.schedule_id})"
@@ -337,8 +396,28 @@ function openEditModal(scheduleId) {
     // モーダルに情報を設定
     const jobIcon = getJobIcon(schedule.job_type);
     const jobLabel = getJobLabel(schedule.job_type);
-    document.getElementById('modal-job-type').innerHTML = `${jobIcon} ${jobLabel}`;
-    document.getElementById('modal-layer').textContent = `Layer ${schedule.layer_id}`;
+    const isSystemLayer = schedule.layer_id === 0;
+    
+    // ジョブ種別の表示（説明付き）
+    let jobTypeHtml = `${jobIcon} ${jobLabel}`;
+    if (isSystemLayer) {
+        if (schedule.job_type === 'sensor') {
+            jobTypeHtml += '<br><small class="text-muted">温湿度 + タンク圧力を測定</small>';
+        } else if (schedule.job_type === 'water') {
+            jobTypeHtml += '<br><small class="text-muted">給水ポンプを起動（上から下へ循環）</small>';
+        }
+    } else {
+        if (schedule.job_type === 'camera') {
+            jobTypeHtml += '<br><small class="text-muted">この層の豆苗を撮影</small>';
+        }
+    }
+    document.getElementById('modal-job-type').innerHTML = jobTypeHtml;
+    
+    // レイヤーの表示（バッジ付き）
+    const layerHtml = isSystemLayer 
+        ? 'Layer 0 <span class="badge bg-primary ms-2">システム全体</span>'
+        : `Layer ${schedule.layer_id} <span class="badge bg-success ms-2">${schedule.layer_id}段目</span>`;
+    document.getElementById('modal-layer').innerHTML = layerHtml;
     
     // 時刻を分解
     const [hours, minutes, seconds] = schedule.exec_time.split(':').map(Number);
