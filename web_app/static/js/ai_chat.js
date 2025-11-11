@@ -15,8 +15,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // 画像リストを読み込み
     loadImageList();
     
-    // センサーデータを読み込み
+    // センサーデータを読み込み（初回）
     loadSensorData();
+    
+    // センサーデータを定期的に更新（30秒ごと）
+    setInterval(loadSensorData, 30000);
     
     // Marked.jsの設定
     marked.setOptions({
@@ -95,7 +98,14 @@ async function loadSensorData() {
         const supply = sensorData.supply_pressure ? `${sensorData.supply_pressure} kPa` : 'N/A';
         const drain = sensorData.drain_pressure ? `${sensorData.drain_pressure} kPa` : 'N/A';
         
-        const infoText = `温度: ${temp}, 湿度: ${humid}, 給水タンク: ${supply}, 排水タンク: ${drain}`;
+        // タイムスタンプを表示形式に変換
+        let timeStr = '';
+        if (sensorData.timestamp) {
+            const dt = new Date(sensorData.timestamp);
+            timeStr = ` (${dt.toLocaleString('ja-JP', {month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'})})`;
+        }
+        
+        const infoText = `温度: ${temp}, 湿度: ${humid}, 給水タンク: ${supply}, 排水タンク: ${drain}${timeStr}`;
         document.getElementById('system-info-display').textContent = infoText;
         
     } catch (error) {
@@ -157,6 +167,9 @@ async function sendMessage() {
     showTypingIndicator();
     
     try {
+        // 🔥 送信直前に最新のセンサーデータを取得
+        await loadSensorData();
+        
         // APIリクエスト
         const requestData = {
             message: message,
