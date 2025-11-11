@@ -148,27 +148,8 @@
     </div>
 
     <div class="row g-3">
-        <!-- 最新画像 -->
-        <div class="col-12 col-lg-6">
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white">
-                    <h5 class="card-title mb-0">
-                        <i class="fas fa-camera text-success"></i> 最新画像
-                    </h5>
-                </div>
-                <div class="card-body text-center">
-                    <div id="latest-image-container">
-                        <div class="spinner-border text-success" role="status">
-                            <span class="visually-hidden">読み込み中...</span>
-                        </div>
-                        <p class="text-muted mt-2">画像を読み込んでいます...</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <!-- 次回スケジュール -->
-        <div class="col-12 col-lg-6">
+        <div class="col-12 col-lg-12">
             <div class="card border-0 shadow-sm">
                 <div class="card-header bg-white">
                     <h5 class="card-title mb-0">
@@ -221,7 +202,6 @@ function updateDashboard() {
         .then(data => {
             if (data.success) {
                 updateSensorCards(data.sensor_data);
-                updateLatestImage(data.latest_image);
                 displayAIReport(data.latest_ai_report);
                 updateNextSchedules(data.next_schedules);
                 updateRecentAlerts(data.alerts);
@@ -333,24 +313,6 @@ function updateDrainTank(pressure, threshold) {
         progressElement.className = 'progress-bar progress-bar-striped progress-bar-animated bg-success';
         statusElement.innerHTML = '<small class="text-success"><i class="fas fa-check-circle"></i> 正常</small>';
     }
-}
-
-// 最新画像の更新
-function updateLatestImage(imageData) {
-    const container = document.getElementById('latest-image-container');
-    
-    if (!imageData || !imageData.image_path) {
-        container.innerHTML = '<p class="text-muted">画像がありません</p>';
-        return;
-    }
-
-    const timestamp = new Date(imageData.timestamp);
-    const dateStr = timestamp.toLocaleString('ja-JP');
-    
-    container.innerHTML = `
-        <img src="/${imageData.image_path}" class="img-fluid rounded" alt="最新画像" style="max-height: 300px;">
-        <p class="text-muted mt-2"><small>撮影日時: ${dateStr}</small></p>
-    `;
 }
 
 // 次回スケジュールの更新

@@ -605,6 +605,43 @@ def api_ai_chat():
             ai_response = response.text
             print(f"[AI Chat] レスポンス受信: {len(ai_response)}文字")
             
+            # 画像付き分析の場合、結果をai_reportsテーブルに保存
+            if image_data and image_filename:
+                try:
+                    # レイヤーIDを画像パスから取得（例: layer_1/20251111_090000.jpg → layer_id=1）
+                    layer_id = 1  # デフォルト
+                    if 'layer_' in image_filename:
+                        # ファイル名からlayer_idを抽出する試み
+                        pass  # 今は固定でlayer_id=1
+                    
+                    # 画像の相対パス
+                    image_relative_path = f'plant_images/layer_{layer_id}/{image_filename}'
+                    
+                    # AI応答を解析
+                    analysis_result = parse_ai_response_in_api(ai_response)
+                    
+                    # ai_reportsテーブルに保存
+                    timestamp = datetime.now().isoformat()
+                    with open_db() as conn:
+                        conn.execute("""
+                            INSERT INTO ai_reports (
+                                layer_id, timestamp, image_path, growth_rate, ai_summary, ai_advice,
+                                json_response, slack_sent, llm_model_name, last_updated
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 'gemini-2.5-flash', ?)
+                        """, (
+                            layer_id, timestamp, image_relative_path, 
+                            analysis_result['growth_rate'], 
+                            analysis_result['summary'], 
+                            analysis_result['advice'],
+                            ai_response, timestamp
+                        ))
+                    
+                    print(f"[AI Chat] AI解析結果をデータベースに保存しました")
+                    
+                except Exception as save_error:
+                    # 保存エラーはユーザーには表示せず、ログのみ
+                    print(f"[WARNING] AI解析結果の保存に失敗: {save_error}")
+            
             return jsonify({
                 'response': ai_response,
                 'timestamp': datetime.now().isoformat()
@@ -629,6 +666,43 @@ def api_ai_chat():
     except Exception as e:
         print(f"API エラー: {e}")
         return jsonify({'error': str(e)}), 500
+
+
+def parse_ai_response_in_api(response_text):
+    """AIレスポンスから構造化データを抽出（API用）"""
+    result = {
+        'growth_rate': 0.0,
+        'summary': '',
+        'advice': ''
+    }
+    
+    try:
+        import re
+        # 成長率を抽出
+        growth_match = re.search(r'成長率[:\s]*(\d+\.?\d*)\s*%', response_text)
+        if growth_match:
+            result['growth_rate'] = float(growth_match.group(1))
+        
+        # 状態サマリーを抽出
+        summary_match = re.search(r'\*\*状態サマリー[：:]\*\*\s*(.*?)(?=\*\*|$)', response_text, re.DOTALL)
+        if summary_match:
+            result['summary'] = summary_match.group(1).strip()[:500]
+        else:
+            # サマリーが見つからない場合は全文の最初の200文字
+            result['summary'] = response_text[:200].strip()
+        
+        # アドバイスを抽出
+        advice_match = re.search(r'\*\*アドバイス[：:]\*\*\s*(.*?)(?=\*\*|$)', response_text, re.DOTALL)
+        if advice_match:
+            result['advice'] = advice_match.group(1).strip()[:500]
+        else:
+            result['advice'] = '定期的な観察と管理を続けてください。'
+        
+    except Exception as e:
+        print(f"[WARNING] AI response parsing error: {e}")
+        result['summary'] = response_text[:200]
+    
+    return result
 
 
 def create_system_prompt(sensor_data, image_filename):
