@@ -290,26 +290,58 @@
     background: #20c997;
 }
 
-/* 送信データプレビュー */
-#dataPreview .card-body {
-    padding: 0.75rem;
+/* システムメッセージ */
+.system-message {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+    animation: fadeIn 0.3s ease-in;
+}
+
+.system-bubble {
+    max-width: 85%;
+    padding: 0.75rem 1rem;
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 0.75rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.system-bubble .system-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    color: #6c757d;
     font-size: 0.875rem;
+    font-weight: 600;
 }
 
-#dataPreview .row {
+.system-bubble .system-content {
     font-size: 0.85rem;
+    color: #495057;
 }
 
-#dataPreview strong {
-    color: #28a745;
+.system-bubble .data-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
 }
 
-/* 折りたたみアイコンのアニメーション */
-#collapse-icon {
-    transition: transform 0.3s ease;
+.system-bubble .data-item {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
 }
 
-[aria-expanded="true"] #collapse-icon {
-    transform: rotate(180deg);
+.system-bubble .data-item i {
+    font-size: 0.9rem;
+}
+
+@media (max-width: 768px) {
+    .system-bubble {
+        max-width: 95%;
+    }
 }
 

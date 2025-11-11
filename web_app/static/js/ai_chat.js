@@ -54,10 +54,6 @@ function setupEventListeners() {
     // 画像選択
     document.getElementById('image-selector').addEventListener('change', function() {
         updateImagePreview();
-        // プレビュー更新
-        if (currentSensorData) {
-            updateDataPreview(currentSensorData);
-        }
     });
 }
 
@@ -109,48 +105,85 @@ async function loadSensorData() {
             timeStr = ` (${dt.toLocaleString('ja-JP', {month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'})})`;
         }
         
-        const infoText = `温度: ${temp}, 湿度: ${humid}, 給水タンク: ${supply}, 排水タンク: ${drain}${timeStr}`;
-        
-        // プレビュー表示を更新
-        updateDataPreview(sensorData);
-        
     } catch (error) {
         console.error('センサーデータ読み込みエラー:', error);
     }
 }
 
-// 送信データプレビューを更新
-function updateDataPreview(sensorData) {
-    // 画像情報
-    const imageSelector = document.getElementById('image-selector');
-    const previewImageText = document.getElementById('preview-image-text');
+// システムメッセージ（送信データ）を追加
+function addSystemMessage(sensorData, imagePath) {
+    const chatContainer = document.getElementById('chat-container');
     
-    if (imageSelector.value) {
-        const selectedOption = imageSelector.options[imageSelector.selectedIndex];
-        previewImageText.innerHTML = `<small class="text-dark"><strong>${selectedOption.text}</strong></small>`;
-    } else {
-        previewImageText.innerHTML = `<small class="text-secondary">選択なし</small>`;
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'system-message';
+    
+    // 画像情報
+    let imageHTML = '';
+    if (imagePath) {
+        imageHTML = `
+            <div class="data-item">
+                <i class="fas fa-image text-primary"></i>
+                <span>${imagePath}</span>
+            </div>
+        `;
     }
     
-    // 環境データ
-    document.getElementById('preview-temp').textContent = sensorData.temperature ? `${sensorData.temperature}℃` : 'N/A';
-    document.getElementById('preview-humid').textContent = sensorData.humidity ? `${sensorData.humidity}%` : 'N/A';
-    document.getElementById('preview-supply').textContent = sensorData.supply_pressure ? `${sensorData.supply_pressure} kPa` : 'N/A';
-    document.getElementById('preview-drain').textContent = sensorData.drain_pressure ? `${sensorData.drain_pressure} kPa` : 'N/A';
+    // センサーデータ
+    const temp = sensorData.temperature ? `${sensorData.temperature}℃` : 'N/A';
+    const humid = sensorData.humidity ? `${sensorData.humidity}%` : 'N/A';
+    const supply = sensorData.supply_pressure ? `${sensorData.supply_pressure} kPa` : 'N/A';
+    const drain = sensorData.drain_pressure ? `${sensorData.drain_pressure} kPa` : 'N/A';
     
     // 測定時刻
+    let timeStr = 'N/A';
     if (sensorData.timestamp) {
         const dt = new Date(sensorData.timestamp);
-        document.getElementById('preview-time').textContent = dt.toLocaleString('ja-JP', {
+        timeStr = dt.toLocaleString('ja-JP', {
             month: 'short',
             day: 'numeric',
             hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit'
+            minute: '2-digit'
         });
-    } else {
-        document.getElementById('preview-time').textContent = 'N/A';
     }
+    
+    messageDiv.innerHTML = `
+        <div class="system-bubble">
+            <div class="system-header">
+                <i class="fas fa-chart-bar"></i>
+                <span>以下のデータで分析中...</span>
+            </div>
+            <div class="system-content">
+                ${imageHTML}
+                <div class="data-row">
+                    <div class="data-item">
+                        <i class="fas fa-temperature-high text-danger"></i>
+                        <span>${temp}</span>
+                    </div>
+                    <div class="data-item">
+                        <i class="fas fa-tint text-info"></i>
+                        <span>${humid}</span>
+                    </div>
+                    <div class="data-item">
+                        <i class="fas fa-water text-primary"></i>
+                        <span>給水: ${supply}</span>
+                    </div>
+                    <div class="data-item">
+                        <i class="fas fa-faucet text-secondary"></i>
+                        <span>排水: ${drain}</span>
+                    </div>
+                </div>
+                <div class="data-row">
+                    <div class="data-item">
+                        <i class="fas fa-clock text-warning"></i>
+                        <span>測定: ${timeStr}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    chatContainer.appendChild(messageDiv);
+    scrollToBottom();
 }
 
 // 画像プレビューの更新
@@ -202,12 +235,15 @@ async function sendMessage() {
     sendBtn.disabled = true;
     sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 送信中...';
     
-    // タイピングインジケーター表示
-    showTypingIndicator();
-    
     try {
         // 🔥 送信直前に最新のセンサーデータを取得
         await loadSensorData();
+        
+        // システムメッセージ（送信データ）を表示
+        addSystemMessage(currentSensorData, selectedImage);
+        
+        // タイピングインジケーター表示
+        showTypingIndicator();
         
         // APIリクエスト
         const requestData = {
