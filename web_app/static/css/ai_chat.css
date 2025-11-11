@@ -277,3 +277,10 @@
         padding: 6px 2px;
     }
 }
+.user-bubble .attached-image {
+  max-width: 200px;
+  max-height: 200px;
+  border-radius: 5px;
+  cursor: pointer;
+  margin-top: 10px;
+}

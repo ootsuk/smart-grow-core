@@ -602,25 +602,19 @@ def api_ai_chat():
                 print(f"[AI Chat] テキストリクエスト: {user_message[:50]}...")
                 response = gemini_model.generate_content(system_prompt + "\n\n" + user_message)
             
-            ai_response = response.text
-            print(f"[AI Chat] レスポンス受信: {len(ai_response)}文字")
+            ai_response_text = response.text
+            print(f"[AI Chat] レスポンス受信: {len(ai_response_text)}文字")
+
+            # AI応答を解析
+            analysis_result = parse_ai_response_in_api(ai_response_text)
             
             # 画像付き分析の場合、結果をai_reportsテーブルに保存
             if image_data and image_filename:
                 try:
-                    # レイヤーIDを画像パスから取得（例: layer_1/20251111_090000.jpg → layer_id=1）
-                    layer_id = 1  # デフォルト
-                    if 'layer_' in image_filename:
-                        # ファイル名からlayer_idを抽出する試み
-                        pass  # 今は固定でlayer_id=1
-                    
-                    # 画像の相対パス
+                    # レイヤーIDを画像パスから取得
+                    layer_id = 1 # 固定
                     image_relative_path = f'plant_images/layer_{layer_id}/{image_filename}'
                     
-                    # AI応答を解析
-                    analysis_result = parse_ai_response_in_api(ai_response)
-                    
-                    # ai_reportsテーブルに保存
                     timestamp = datetime.now().isoformat()
                     with open_db() as conn:
                         conn.execute("""
@@ -633,17 +627,16 @@ def api_ai_chat():
                             analysis_result['growth_rate'], 
                             analysis_result['summary'], 
                             analysis_result['advice'],
-                            ai_response, timestamp
+                            ai_response_text, timestamp
                         ))
                     
                     print(f"[AI Chat] AI解析結果をデータベースに保存しました")
                     
                 except Exception as save_error:
-                    # 保存エラーはユーザーには表示せず、ログのみ
                     print(f"[WARNING] AI解析結果の保存に失敗: {save_error}")
             
             return jsonify({
-                'response': ai_response,
+                'response': analysis_result['chat_response'],
                 'timestamp': datetime.now().isoformat()
             })
             
@@ -669,59 +662,66 @@ def api_ai_chat():
 
 
 def parse_ai_response_in_api(response_text):
-    """AIレスポンスから構造化データを抽出（API用）"""
-    result = {
-        'growth_rate': 0.0,
-        'summary': '',
-        'advice': ''
-    }
-    
+    """AIレスポンス（JSON）から構造化データを抽出"""
+    import json
+    import re
+
     try:
-        import re
-        # 成長率を抽出
-        growth_match = re.search(r'成長率[:\s]*(\d+\.?\d*)\s*%', response_text)
-        if growth_match:
-            result['growth_rate'] = float(growth_match.group(1))
-        
-        # 状態サマリーを抽出
-        summary_match = re.search(r'\*\*状態サマリー[：:]\*\*\s*(.*?)(?=\*\*|$)', response_text, re.DOTALL)
-        if summary_match:
-            result['summary'] = summary_match.group(1).strip()[:500]
+        # ```json ... ``` の中身を抽出
+        match = re.search(r'```json\s*([\s\S]*?)\s*```', response_text)
+        if match:
+            json_str = match.group(1)
         else:
-            # サマリーが見つからない場合は全文の最初の200文字
-            result['summary'] = response_text[:200].strip()
+            # JSONがそのまま返された場合
+            json_str = response_text
+
+        data = json.loads(json_str)
         
-        # アドバイスを抽出
-        advice_match = re.search(r'\*\*アドバイス[：:]\*\*\s*(.*?)(?=\*\*|$)', response_text, re.DOTALL)
-        if advice_match:
-            result['advice'] = advice_match.group(1).strip()[:500]
-        else:
-            result['advice'] = '定期的な観察と管理を続けてください。'
-        
-    except Exception as e:
-        print(f"[WARNING] AI response parsing error: {e}")
-        result['summary'] = response_text[:200]
-    
-    return result
+        # バリデーションとデフォルト値設定
+        return {
+            'growth_rate': float(data.get('growth_rate', 0.0)),
+            'summary': data.get('summary', 'サマリーの取得に失敗しました。').strip(),
+            'advice': data.get('advice', 'アドバイスの取得に失敗しました。').strip(),
+            'chat_response': data.get('chat_response', '応答メッセージの取得に失敗しました。').strip()
+        }
+    except (json.JSONDecodeError, TypeError, ValueError) as e:
+        print(f"[ERROR] AI JSON response parsing failed: {e}")
+        print(f"Original response text: {response_text[:500]}")
+        # フォールバック処理
+        return {
+            'growth_rate': 0.0,
+            'summary': 'AIからの応答の解析に失敗しました。',
+            'advice': '管理者ログを確認してください。',
+            'chat_response': f'**エラー:** AIからの応答を解析できませんでした。\n\n```\n{response_text}\n```'
+        }
 
 
 def create_system_prompt(sensor_data, image_filename):
     """システムプロンプトを作成"""
     prompt = """あなたは豆苗栽培の専門AIアシスタントです。
-ユーザーの質問に対して、以下の情報を参考にしながら、正確で親切な回答をしてください。
+ユーザーの質問に対して、以下の情報を参考にしながら、分析結果と回答をJSON形式で返してください。
 
-**回答時の注意事項:**
-- Markdown形式で回答してください
-- 見出し、箇条書き、表、コードブロックなどを適切に使用してください
-- 具体的な数値やデータがある場合は、それを明示してください
-- ユーザーが理解しやすいように、分かりやすい言葉で説明してください
-- 必要に応じて絵文字（🌱、💧、☀️など）を使って見やすくしてください
+**JSONフォーマット:**
+```json
+{
+  "growth_rate": <成長率 (%), 数値>,
+  "summary": "<状態サマリー (Markdown)>",
+  "advice": "<具体的なアドバイス (Markdown)>",
+  "chat_response": "<ユーザーへの返答メッセージ (Markdown)>"
+}
+```
 
+**各項目の説明:**
+- `growth_rate`: 添付画像を分析し、前日からの成長率を推定してパーセンテージで記述してください（例: 15.5）。分析が難しい場合は 0 を返してください。
+- `summary`: 画像とセンサーデータを基にした豆苗の健康状態、成長具合のサマリーです。200文字以内で記述してください。
+- `advice`: 栽培に関する具体的なアドバイスです。箇条書きなどを用いて分かりやすく記述してください。
+- `chat_response`: ユーザーへの応答メッセージです。質問に答え、分析結果を要約し、親切なトーンで記述してください。絵文字（🌱, 💧, ☀️）も適절に使ってください。
+
+**現在のシステム情報:**
 """
     
     # センサーデータを追加
     if sensor_data:
-        prompt += "\n**現在のシステム情報:**\n"
         if 'temperature' in sensor_data and sensor_data['temperature']:
             prompt += f"- 温度: {sensor_data['temperature']}℃\n"
         if 'humidity' in sensor_data and sensor_data['humidity']:
@@ -730,11 +730,13 @@ def create_system_prompt(sensor_data, image_filename):
             prompt += f"- 給水タンク圧力: {sensor_data['supply_pressure']} kPa\n"
         if 'drain_pressure' in sensor_data and sensor_data['drain_pressure']:
             prompt += f"- 排水タンク圧力: {sensor_data['drain_pressure']} kPa\n"
-    
+    else:
+        prompt += "- データなし\n"
+
     # 画像情報を追加
     if image_filename:
         prompt += f"\n**添付画像:** {image_filename}\n"
-        prompt += "画像を分析して、豆苗の成長状態、健康状態、問題点などを詳しく教えてください。\n"
+        prompt += "この画像を分析し、上記のJSONフォーマットに従って回答を作成してください。\n"
     
     prompt += "\n---\n\n"
     

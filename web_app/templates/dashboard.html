@@ -2,6 +2,12 @@
 
 {% block title %}ダッシュボード - Smart Grow System{% endblock %}
 
+{% block extra_head %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+{% endblock %}
+
 {% block content %}
 <div class="container">
     <div class="row mb-4">
@@ -22,22 +28,19 @@
         </div>
     </div>
 
-    <!-- AI解析レポートカード -->
+    <!-- AI解析レポート -->
     <div class="row mb-4">
-        <div class="col">
+        <div class="col-12">
             <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">
-                        <i class="fas fa-robot text-success"></i> 本日のAI分析レポート
+                        <i class="fas fa-robot text-success"></i> 最新のAI分析レポート
                     </h5>
+                    <small class="text-muted" id="ai-report-timestamp">読み込み中...</small>
                 </div>
-                <div class="card-body" id="ai-report-container">
-                    <!-- AI解析レポートがここに動的に表示される -->
-                    <div class="text-center py-4">
-                        <div class="spinner-border text-success" role="status">
-                            <span class="visually-hidden">読み込み中...</span>
-                        </div>
-                        <p class="text-muted mt-2">AI解析レポートを読み込み中...</p>
+                <div class="card-body">
+                    <div id="ai-report-container">
+                        <!-- AIレポートがここに表示される -->
                     </div>
                 </div>
             </div>
@@ -405,63 +408,160 @@ function getLogLevelBadge(logLevel) {
     return badges[logLevel] || 'bg-secondary';
 }
 
+// 過去のAIレポート履歴を取得
+async function fetchAIReportHistory() {
+    try {
+        const response = await fetch('/api/ai-reports-list?limit=7');
+        const data = await response.json();
+        if (data.success) {
+            // 順番を逆（古い順）にする
+            return data.reports.reverse();
+        }
+        return [];
+    } catch (error) {
+        console.error('AI report history fetch error:', error);
+        return [];
+    }
+}
+
+
 // AI解析レポートの表示
-function displayAIReport(aiReport) {
+async function displayAIReport(aiReport) {
     const container = document.getElementById('ai-report-container');
-    
+    const timestampEl = document.getElementById('ai-report-timestamp');
+
     if (!aiReport) {
-        // レポートがない場合
+        timestampEl.textContent = 'データなし';
         container.innerHTML = `
-            <div class="text-center py-3">
-                <i class="fas fa-clock text-muted" style="font-size: 3rem;"></i>
-                <p class="text-muted mt-3 mb-0">
-                    本日のAI分析はまだ実行されていません。<br>
-                    毎日9時に自動で新しい写真を撮影し、AI分析を実行します。
-                </p>
-            </div>
-        `;
+            <div class="text-center py-5">
+                <i class="fas fa-search-plus text-muted fa-3x mb-3"></i>
+                <h5 class="text-muted">AI分析レポートがありません</h5>
+                <p class="text-muted">分析が完了すると、ここに表示されます。</p>
+            </div>`;
         return;
     }
+
+    // タイムスタンプ更新
+    const timestamp = new Date(aiReport.timestamp);
+    timestampEl.textContent = `${timestamp.toLocaleString('ja-JP')} 時点`;
     
-    // 成長率に応じた星評価
-    const stars = getStarRating(aiReport.growth_rate);
-    
-    // タイムスタンプをフォーマット
-    const timestamp = new Date(aiReport.timestamp).toLocaleString('ja-JP');
-    
+    // 過去7日間のレポート履歴を取得
+    const reportHistory = await fetchAIReportHistory();
+
     container.innerHTML = `
-        <div class="row">
-            <div class="col-md-8">
-                <div class="d-flex align-items-center mb-3">
-                    <div class="me-3">
-                        <div style="font-size: 2rem;">${stars}</div>
+        <div class="row align-items-center">
+            <!-- 左側：サマリー -->
+            <div class="col-md-6">
+                <div class="d-flex align-items-start mb-3">
+                    <div class="display-4 text-success me-3">
+                        <i class="fas fa-seedling"></i>
                     </div>
                     <div>
-                        <h5 class="mb-1">成長率: ${aiReport.growth_rate}%</h5>
-                        <small class="text-muted">
-                            <i class="fas fa-clock"></i> ${timestamp}
-                        </small>
+                        <h5 class="mb-1 text-muted">最新の評価</h5>
+                        <p class="h4 mb-0">${aiReport.ai_summary || 'サマリーなし'}</p>
                     </div>
                 </div>
                 
-                <div class="mb-3">
-                    <h6 class="text-muted">状態サマリー</h6>
-                    <p class="mb-0">${aiReport.ai_summary || 'データなし'}</p>
+                <div class="alert alert-success-soft">
+                    <h6><i class="fas fa-lightbulb"></i> AIからのアドバイス</h6>
+                    <p class="mb-0">${aiReport.ai_advice || 'アドバイスなし'}</p>
                 </div>
                 
-                <button class="btn btn-success btn-sm" onclick="showAIDetailModal(${aiReport.report_id})">
-                    <i class="fas fa-search-plus"></i> 詳細を見る
-                </button>
+                <div class="mt-3">
+                    <button class="btn btn-success" onclick="showAIDetailModal(${aiReport.report_id})">
+                        <i class="fas fa-search-plus"></i> 詳細レポートを見る
+                    </button>
+                    <a href="/ai-reports" class="btn btn-outline-secondary">
+                        <i class="fas fa-comments"></i> AIに相談する
+                    </a>
+                </div>
             </div>
-            <div class="col-md-4 text-center">
-                ${aiReport.image_path ? 
-                    `<img src="/${aiReport.image_path}" alt="分析画像" 
-                          class="img-fluid rounded" style="max-height: 200px; cursor: pointer;"
-                          onclick="showAIDetailModal(${aiReport.report_id})">` 
-                    : '<p class="text-muted">画像なし</p>'}
+
+            <!-- 右側：グラフ -->
+            <div class="col-md-6">
+                <div class="text-center">
+                    <p class="text-muted mb-1">📈 成長率トレンド (過去7日間)</p>
+                    <canvas id="growthChart" height="200"></canvas>
+                </div>
             </div>
         </div>
     `;
+
+    // 成長率グラフを描画
+    renderGrowthChart(reportHistory);
+}
+
+// 成長率グラフの描画
+function renderGrowthChart(reportHistory) {
+    const ctx = document.getElementById('growthChart').getContext('2d');
+
+    if (!reportHistory || reportHistory.length === 0) {
+        ctx.font = "16px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("データがありません", 150, 100);
+        return;
+    }
+
+    // 日付ラベルとデータを作成
+    const labels = reportHistory.map(r => new Date(r.timestamp));
+    const data = reportHistory.map(r => r.growth_rate);
+
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: '成長率 (%)',
+                data: data,
+                borderColor: '#198754',
+                backgroundColor: 'rgba(25, 135, 84, 0.1)',
+                fill: true,
+                tension: 0.3,
+                pointBackgroundColor: '#198754',
+                pointRadius: 5
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    type: 'time',
+                    time: {
+                        unit: 'day',
+                        displayFormats: {
+                            day: 'M/d'
+                        }
+                    },
+                    title: {
+                        display: false,
+                    },
+                    grid: {
+                        display: false
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: '成長率 (%)'
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return ` 成長率: ${context.raw}%`;
+                        }
+                    }
+                }
+            }
+        }
+    });
 }
 
 // 成長率から星評価を生成

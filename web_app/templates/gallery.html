@@ -36,29 +36,35 @@
         </div>
     </div>
 
-    <!-- カレンダー -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body">
-                    <!-- 曜日ヘッダー -->
-                    <div class="calendar-header">
-                        <div class="calendar-day-header">日</div>
-                        <div class="calendar-day-header">月</div>
-                        <div class="calendar-day-header">火</div>
-                        <div class="calendar-day-header">水</div>
-                        <div class="calendar-day-header">木</div>
-                        <div class="calendar-day-header">金</div>
-                        <div class="calendar-day-header">土</div>
-                    </div>
-                    
-                    <!-- カレンダー本体 -->
-                    <div id="calendar-grid" class="calendar-grid">
-                        <!-- JavaScriptで動的生成 -->
-                        <div class="text-center py-5">
-                            <div class="spinner-border text-success" role="status">
-                                <span class="visually-hidden">読み込み中...</span>
-                            </div>
+    <!-- 表示切替 -->
+    <div class="row mb-3">
+        <div class="col-12 text-center">
+            <div class="btn-group" role="group">
+                <input type="radio" class="btn-check" name="view-toggle" id="timeline-view-btn" autocomplete="off" checked onchange="toggleView('timeline')">
+                <label class="btn btn-outline-success" for="timeline-view-btn"><i class="fas fa-stream"></i> タイムライン</label>
+
+                <input type="radio" class="btn-check" name="view-toggle" id="calendar-view-btn" autocomplete="off" onchange="toggleView('calendar')">
+                <label class="btn btn-outline-success" for="calendar-view-btn"><i class="fas fa-calendar-alt"></i> カレンダー</label>
+            </div>
+        </div>
+    </div>
+
+    <!-- タイムライン表示 -->
+    <div id="timeline-view">
+        <!-- JSで動的に生成 -->
+    </div>
+
+    <!-- カレンダー表示 -->
+    <div id="calendar-view" style="display: none;">
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="calendar-header">
+                            <!-- Days of the week -->
+                        </div>
+                        <div id="calendar-grid" class="calendar-grid">
+                            <!-- Calendar days -->
                         </div>
                     </div>
                 </div>
@@ -250,6 +256,42 @@
 
 .thumbnail-img:hover {
     transform: scale(1.05);
+}
+
+/* タイムライン */
+.timeline {
+    position: relative;
+    padding: 20px 0;
+}
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 20px;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: #e9ecef;
+    border-radius: 2px;
+}
+.timeline-item {
+    position: relative;
+    margin-bottom: 20px;
+    padding-left: 50px;
+}
+.timeline-icon {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #198754;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    border: 2px solid white;
 }
 </style>
 
@@ -600,6 +642,94 @@ function navigateDay(delta) {
     // モーダルの内容のみを更新（新しくモーダルを開かない）
     updateModalContent(newDateStr);
 }
+
+// 表示切替
+function toggleView(view) {
+    if (view === 'timeline') {
+        document.getElementById('timeline-view').style.display = 'block';
+        document.getElementById('calendar-view').style.display = 'none';
+        renderTimeline(); // タイムラインを描画
+    } else {
+        document.getElementById('timeline-view').style.display = 'none';
+        document.getElementById('calendar-view').style.display = 'block';
+        renderCalendar(); // カレンダーを描画
+    }
+}
+
+// タイムラインのレンダリング
+function renderTimeline() {
+    const timelineContainer = document.getElementById('timeline-view');
+    timelineContainer.innerHTML = '<div class="timeline"></div>'; // Reset
+    const timeline = timelineContainer.querySelector('.timeline');
+
+    if (allImages.length === 0) {
+        timeline.innerHTML = '<p class="text-muted text-center">表示できる画像がありません。</p>';
+        return;
+    }
+
+    // 日付ごとにグループ化
+    const imagesByDay = {};
+    allImages.forEach(img => {
+        const date = new Date(img.timestamp).toLocaleDateString('ja-JP');
+        if (!imagesByDay[date]) {
+            imagesByDay[date] = [];
+        }
+        imagesByDay[date].push(img);
+    });
+
+    for (const date in imagesByDay) {
+        const dayImages = imagesByDay[date];
+        const firstImage = dayImages[0];
+
+        const timelineItem = document.createElement('div');
+        timelineItem.className = 'timeline-item';
+
+        timelineItem.innerHTML = `
+            <div class="timeline-icon">
+                <i class="fas fa-camera"></i>
+            </div>
+            <div class="card border-0 shadow-sm">
+                <div class="card-header">
+                    <strong>${date}</strong>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <img src="/${firstImage.image_path}" class="img-fluid rounded" style="cursor: pointer;" onclick="openModal('${firstImage.date}')">
+                        </div>
+                        <div class="col-md-8" id="report-${firstImage.date}">
+                            <p class="text-muted">AI解析レポートを読み込み中...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        timeline.appendChild(timelineItem);
+        fetchAIReportForTimeline(firstImage.image_path, `report-${firstImage.date}`);
+    }
+}
+
+// タイムライン用のAIレポート取得
+function fetchAIReportForTimeline(imagePath, elementId) {
+    const reportContainer = document.getElementById(elementId);
+    fetch(`/api/ai-report-by-image?image_path=${encodeURIComponent(imagePath)}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.report) {
+                const report = data.report;
+                reportContainer.innerHTML = `
+                    <h5>${report.ai_summary}</h5>
+                    <p class="text-muted">${report.ai_advice}</p>
+                    <button class="btn btn-sm btn-outline-success" onclick="openModal('${new Date(report.timestamp).toISOString().split('T')[0]}')">
+                        詳細を見る
+                    </button>
+                `;
+            } else {
+                reportContainer.innerHTML = '<p class="text-muted">この画像のAI解析レポートはありません。</p>';
+            }
+        });
+}
+
 
 // 初期化
 document.addEventListener('DOMContentLoaded', function() {
