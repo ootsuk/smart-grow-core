@@ -375,7 +375,6 @@ function renderCalendar() {
 // モーダルを開く
 function openModal(dateStr) {
     const images = imagesByDate[dateStr] || [];
-    if (images.length === 0) return;
     
     currentModalDate = dateStr;
     
@@ -384,8 +383,12 @@ function openModal(dateStr) {
     document.getElementById('modal-date').textContent = 
         `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
     
-    // 最初の画像を表示
-    showImage(images[0], images);
+    // 画像がある場合は表示、ない場合はメッセージ表示
+    if (images.length > 0) {
+        showImage(images[0], images);
+    } else {
+        showNoImageMessage();
+    }
     
     // モーダルを開く
     const modal = new bootstrap.Modal(document.getElementById('imageModal'));
@@ -394,10 +397,16 @@ function openModal(dateStr) {
 
 // 画像を表示
 function showImage(imageData, allDayImages) {
-    document.getElementById('modal-image').src = '/' + imageData.path;
+    const modalImage = document.getElementById('modal-image');
+    modalImage.src = '/' + imageData.path;
+    modalImage.style.display = 'block';
+    modalImage.parentElement.querySelector('.no-image-message')?.remove();
     
     // センサーデータを取得（画像のタイムスタンプに近いデータ）
     fetchSensorData(imageData.timestamp);
+    
+    // センサー情報を表示
+    document.getElementById('sensor-info').style.display = 'flex';
     
     // 同じ日の他の画像
     if (allDayImages.length > 1) {
@@ -416,6 +425,31 @@ function showImage(imageData, allDayImages) {
     } else {
         document.getElementById('same-day-images').style.display = 'none';
     }
+}
+
+// 画像なしメッセージを表示
+function showNoImageMessage() {
+    const modalImage = document.getElementById('modal-image');
+    modalImage.style.display = 'none';
+    
+    // 既存のメッセージを削除
+    modalImage.parentElement.querySelector('.no-image-message')?.remove();
+    
+    // メッセージを追加
+    const noImageDiv = document.createElement('div');
+    noImageDiv.className = 'no-image-message text-center py-5';
+    noImageDiv.innerHTML = `
+        <i class="fas fa-image fa-3x text-muted mb-3"></i>
+        <h5 class="text-muted">この日は画像がありません</h5>
+        <p class="text-muted mb-0">前後の日の画像を確認してください</p>
+    `;
+    modalImage.parentElement.appendChild(noImageDiv);
+    
+    // センサー情報を非表示
+    document.getElementById('sensor-info').style.display = 'none';
+    
+    // 同じ日の他の画像を非表示
+    document.getElementById('same-day-images').style.display = 'none';
 }
 
 // センサーデータを取得
@@ -446,12 +480,8 @@ function navigateDay(delta) {
     
     const newDateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
     
-    if (imagesByDate[newDateStr]) {
-        openModal(newDateStr);
-    } else {
-        // 画像がない日は次を探す
-        navigateDay(delta);
-    }
+    // 画像があってもなくても、その日のモーダルを開く
+    openModal(newDateStr);
 }
 
 // 初期化
