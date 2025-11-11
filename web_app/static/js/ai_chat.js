@@ -2,15 +2,16 @@
 
 // グローバル変数
 let currentSensorData = null;
-let imagePreviewModal = null;
+let imageSelectModal = null; // 画像選択モーダル
 let imagesByDate = {}; // 日付ごとの画像データ
 let allChatImages = []; // 全画像データ
 let selectedImageFilename = null; // 選択された画像のファイル名
+let tempSelectedImage = null; // モーダル内で一時的に選択中の画像
 
 // ページ読み込み時の初期化
 document.addEventListener('DOMContentLoaded', function() {
     // モーダル初期化
-    imagePreviewModal = new bootstrap.Modal(document.getElementById('imagePreviewModal'));
+    imageSelectModal = new bootstrap.Modal(document.getElementById('imageSelectModal'));
     
     // イベントリスナー設定
     setupEventListeners();
@@ -54,6 +55,27 @@ function setupEventListeners() {
         });
     });
     
+    // 画像添付ボタン
+    document.getElementById('attach-image-btn').addEventListener('click', function() {
+        openImageSelectModal();
+    });
+    
+    // 画像削除ボタン
+    document.getElementById('remove-image-btn').addEventListener('click', function() {
+        removeAttachedImage();
+    });
+    
+    // モーダル内の選択確定ボタン
+    document.getElementById('confirm-select-btn').addEventListener('click', function() {
+        confirmImageSelection();
+    });
+    
+    // サムネイルクリックで拡大表示
+    document.getElementById('attached-image-thumb').addEventListener('click', function() {
+        if (this.src) {
+            window.open(this.src, '_blank');
+        }
+    });
 }
 
 // 画像リストの読み込み（カレンダー用）
@@ -75,17 +97,23 @@ async function loadImageList() {
             imagesByDate[date].push(img);
         });
         
-        // カレンダーを描画
-        renderMiniCalendar();
-        
     } catch (error) {
         console.error('画像リスト読み込みエラー:', error);
     }
 }
 
-// ミニカレンダーの描画
-function renderMiniCalendar() {
-    const container = document.getElementById('mini-calendar');
+// 画像選択モーダルを開く
+function openImageSelectModal() {
+    // カレンダーを描画
+    renderModalCalendar();
+    
+    // モーダルを表示
+    imageSelectModal.show();
+}
+
+// モーダル用カレンダーの描画
+function renderModalCalendar() {
+    const container = document.getElementById('modal-calendar');
     
     // 最新の画像の日付を取得
     const latestDate = allChatImages.length > 0 ? new Date(allChatImages[0].timestamp) : new Date();
@@ -127,37 +155,68 @@ function renderMiniCalendar() {
         if (hasImage) className += ' has-image';
         if (isToday) className += ' today';
         
-        html += `<div class="${className}" onclick="selectDateForAI('${dateStr}')">${day}</div>`;
+        html += `<div class="${className}" onclick="selectDateInModal('${dateStr}')">${day}</div>`;
     }
     
     html += `</div>`;
     container.innerHTML = html;
 }
 
-// 日付選択（AI用）
-function selectDateForAI(dateStr) {
+// モーダル内で日付選択
+function selectDateInModal(dateStr) {
     const images = imagesByDate[dateStr];
     if (!images || images.length === 0) {
-        alert('この日の画像はありません');
-        return;
+        return; // 画像がない日はクリックしても何もしない
     }
     
-    // 最初の画像を選択
-    const selectedImage = images[0];
-    selectedImageFilename = selectedImage.filename;
+    // 最初の画像を一時選択
+    tempSelectedImage = images[0];
     
     // プレビュー表示
-    const preview = document.getElementById('selected-image-preview');
-    const previewImg = preview.querySelector('img');
-    const dateDisplay = document.getElementById('selected-image-date');
+    const preview = document.getElementById('modal-image-preview');
+    const previewImg = document.getElementById('modal-preview-image');
+    const dateDisplay = document.getElementById('modal-preview-date');
     
-    previewImg.src = `/plant_images/layer_1/${selectedImage.filename}`;
-    dateDisplay.textContent = new Date(selectedImage.timestamp).toLocaleDateString('ja-JP');
+    previewImg.src = `/plant_images/layer_1/${tempSelectedImage.filename}`;
+    dateDisplay.textContent = new Date(tempSelectedImage.timestamp).toLocaleDateString('ja-JP');
     preview.style.display = 'block';
+    
+    // 選択ボタンを有効化
+    document.getElementById('confirm-select-btn').disabled = false;
     
     // カレンダーの選択状態を更新
     document.querySelectorAll('.mini-cal-day').forEach(el => el.classList.remove('selected'));
     event.target.classList.add('selected');
+}
+
+// 画像選択を確定
+function confirmImageSelection() {
+    if (!tempSelectedImage) return;
+    
+    // 選択を確定
+    selectedImageFilename = tempSelectedImage.filename;
+    
+    // 添付画像プレビューを表示
+    const preview = document.getElementById('attached-image-preview');
+    const thumb = document.getElementById('attached-image-thumb');
+    const dateDisplay = document.getElementById('attached-image-date');
+    
+    thumb.src = `/plant_images/layer_1/${selectedImageFilename}`;
+    dateDisplay.textContent = new Date(tempSelectedImage.timestamp).toLocaleDateString('ja-JP');
+    preview.style.display = 'block';
+    
+    // モーダルを閉じる
+    imageSelectModal.hide();
+    
+    // 一時選択をクリア
+    tempSelectedImage = null;
+}
+
+// 添付画像を削除
+function removeAttachedImage() {
+    selectedImageFilename = null;
+    document.getElementById('attached-image-preview').style.display = 'none';
+    document.getElementById('attached-image-thumb').src = '';
 }
 
 // センサーデータの読み込み
@@ -264,14 +323,6 @@ function addSystemMessage(sensorData, imagePath) {
     scrollToBottom();
 }
 
-// 画像プレビューモーダルを表示
-function showImagePreview() {
-    if (selectedImageFilename) {
-        const imagePath = `/plant_images/layer_1/${selectedImageFilename}`;
-        document.getElementById('modal-preview-image').src = imagePath;
-        imagePreviewModal.show();
-    }
-}
 
 // メッセージ送信
 async function sendMessage() {
