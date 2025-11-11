@@ -112,6 +112,21 @@
                     </div>
                 </div>
                 
+                <!-- AI解析レポート -->
+                <div id="ai-report-section" style="display: none;">
+                    <hr>
+                    <div class="card bg-light border-0">
+                        <div class="card-body">
+                            <h6 class="mb-3">
+                                <i class="fas fa-robot text-success"></i> AI解析レポート
+                            </h6>
+                            <div id="gallery-ai-report-content">
+                                <!-- AI解析レポートがここに表示される -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
                 <!-- 同じ日の他の画像 -->
                 <div id="same-day-images" style="display: none;">
                     <hr>
@@ -421,6 +436,9 @@ function showImage(imageData, allDayImages) {
     // センサーデータを取得（画像のタイムスタンプに近いデータ）
     fetchSensorData(imageData.timestamp);
     
+    // AI解析レポートを取得
+    fetchAIReportForImage(imageData.path);
+    
     // センサー情報を表示
     document.getElementById('sensor-info').style.display = 'flex';
     
@@ -485,6 +503,86 @@ function fetchSensorData(timestamp) {
         .catch(error => {
             console.error('Error fetching sensor data:', error);
         });
+}
+
+// AI解析レポートを取得
+function fetchAIReportForImage(imagePath) {
+    const reportSection = document.getElementById('ai-report-section');
+    const reportContent = document.getElementById('gallery-ai-report-content');
+    
+    // API経由で画像に対応するAI解析レポートを取得
+    fetch(`/api/ai-report-by-image?image_path=${encodeURIComponent(imagePath)}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.report) {
+                const report = data.report;
+                const stars = getGalleryStarRating(report.growth_rate);
+                const timestamp = new Date(report.timestamp).toLocaleString('ja-JP');
+                
+                reportContent.innerHTML = `
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="me-3">
+                            <div style="font-size: 2rem;">${stars}</div>
+                        </div>
+                        <div>
+                            <h5 class="mb-1">成長率: ${report.growth_rate}%</h5>
+                            <small class="text-muted">
+                                <i class="fas fa-clock"></i> ${timestamp}
+                            </small>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <h6 class="text-muted">状態サマリー</h6>
+                        <p class="mb-0">${report.ai_summary || 'データなし'}</p>
+                    </div>
+                    
+                    ${report.ai_advice ? `
+                    <div class="mb-2">
+                        <h6 class="text-muted"><i class="fas fa-lightbulb text-warning"></i> アドバイス</h6>
+                        <div class="alert alert-info py-2 mb-0">
+                            <small>${formatGalleryAdvice(report.ai_advice)}</small>
+                        </div>
+                    </div>
+                    ` : ''}
+                `;
+                
+                reportSection.style.display = 'block';
+            } else {
+                // AI解析レポートがない場合は非表示
+                reportSection.style.display = 'none';
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching AI report:', error);
+            reportSection.style.display = 'none';
+        });
+}
+
+// 成長率から星評価を生成（ギャラリー用）
+function getGalleryStarRating(growthRate) {
+    const starCount = Math.ceil(growthRate / 20);
+    const fullStars = '⭐'.repeat(Math.min(starCount, 5));
+    const emptyStars = '☆'.repeat(Math.max(0, 5 - starCount));
+    return fullStars + emptyStars;
+}
+
+// アドバイステキストをフォーマット（ギャラリー用）
+function formatGalleryAdvice(advice) {
+    if (!advice) return 'アドバイスなし';
+    
+    const lines = advice.split('\n');
+    let formatted = '';
+    lines.forEach(line => {
+        line = line.trim();
+        if (line.startsWith('•') || line.startsWith('-') || line.startsWith('*')) {
+            formatted += line.substring(1).trim() + '<br>';
+        } else if (line) {
+            formatted += line + '<br>';
+        }
+    });
+    
+    return formatted || advice;
 }
 
 // 前後の日へ移動

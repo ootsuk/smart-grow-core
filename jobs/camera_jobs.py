@@ -6,6 +6,14 @@ import glob
 from database.db_manager import insert_camera_log, insert_system_log, select_layer_info
 from config import *
 
+# AI解析ジョブをインポート
+try:
+    from jobs.ai_analysis_job import execute_ai_analysis_job
+    AI_ANALYSIS_AVAILABLE = True
+except ImportError:
+    AI_ANALYSIS_AVAILABLE = False
+    print("警告: AI解析ジョブがインポートできません。AI解析は実行されません。")
+
 def get_file_name():
     """ファイル名を生成（例: 20250910_100000.jpg）"""
     now = datetime.datetime.now()
@@ -120,6 +128,20 @@ def execute_photo_job(layer_id: int):
         delete_old_images(SAVE_DIR)
         
         print(f"[CAMERA JOB] Layer {layer_id} の画像を {relative_file_path} に保存しました。")
+        
+        # AI解析ジョブを実行（LLM_API_KEYが設定されている場合のみ）
+        if AI_ANALYSIS_AVAILABLE and LLM_API_KEY:
+            try:
+                print(f"[CAMERA JOB] AI解析ジョブを開始します...")
+                execute_ai_analysis_job(layer_id, relative_file_path)
+            except Exception as ai_error:
+                # AI解析のエラーはカメラジョブ全体の失敗とはしない
+                insert_system_log(
+                    layer_id=layer_id,
+                    log_level='WARNING',
+                    message='AI analysis job failed after camera capture.',
+                    details=str(ai_error))
+                print(f"[WARNING] AI解析ジョブでエラーが発生しましたが、カメラ撮影は成功しています: {ai_error}")
 
     except Exception as e:
         insert_system_log(

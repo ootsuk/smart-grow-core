@@ -281,3 +281,33 @@ def select_i2c_bus_num():
     system_config = select_system_config() or {}
     i2c_bus = system_config.get('i2c_bus_num', 1)
     return i2c_bus
+
+def get_latest_ai_report(layer_id):
+    """
+    指定されたレイヤーの最新のAI解析レポートを取得する。
+    """
+    with open_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT * FROM ai_reports
+            WHERE layer_id = ?
+            ORDER BY timestamp DESC
+            LIMIT 1
+        """, (layer_id,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+def get_ai_report_by_image(image_path):
+    """
+    画像パスから対応するAI解析レポートを取得する。
+    """
+    with open_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT * FROM ai_reports
+            WHERE image_path = ?
+            ORDER BY timestamp DESC
+            LIMIT 1
+        """, (image_path,))
+        row = cursor.fetchone()
+        return dict(row) if row else None

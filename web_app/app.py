@@ -12,7 +12,9 @@ from flask import Flask, render_template, jsonify, request, send_from_directory
 from database.db_manager import (
     select_system_config, 
     select_schedules,
-    open_db
+    open_db,
+    get_latest_ai_report,
+    get_ai_report_by_image
 )
 from datetime import datetime, timedelta
 import google.generativeai as genai
@@ -142,6 +144,9 @@ def api_dashboard_data():
         image_layer_id = request.args.get('layer_id', 1, type=int)
         latest_image = get_latest_image(image_layer_id)
         
+        # 最新のAI解析レポートを取得
+        latest_ai_report = get_latest_ai_report(image_layer_id)
+        
         alerts = get_recent_alerts(5)
         next_schedules = get_next_schedules(3)
         
@@ -149,6 +154,7 @@ def api_dashboard_data():
             'success': True,
             'sensor_data': sensor_data,
             'latest_image': latest_image,
+            'latest_ai_report': latest_ai_report,
             'alerts': alerts,
             'next_schedules': next_schedules,
             'timestamp': datetime.now().isoformat()
@@ -487,6 +493,61 @@ def api_schedule_toggle(schedule_id):
 
 
 # ===== AI チャット API =====
+
+@app.route('/api/ai-report/<int:report_id>')
+def api_ai_report(report_id):
+    """AI解析レポートの詳細を取得"""
+    try:
+        with open_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM ai_reports WHERE report_id = ?", (report_id,))
+            row = cursor.fetchone()
+            
+            if row:
+                report = dict(row)
+                return jsonify({
+                    'success': True,
+                    'report': report
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': 'Report not found'
+                }), 404
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/ai-report-by-image')
+def api_ai_report_by_image():
+    """画像パスからAI解析レポートを取得"""
+    try:
+        image_path = request.args.get('image_path')
+        if not image_path:
+            return jsonify({
+                'success': False,
+                'error': 'image_path parameter is required'
+            }), 400
+        
+        report = get_ai_report_by_image(image_path)
+        
+        if report:
+            return jsonify({
+                'success': True,
+                'report': report
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'No AI report found for this image'
+            }), 404
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 @app.route('/api/ai-chat', methods=['POST'])
 def api_ai_chat():

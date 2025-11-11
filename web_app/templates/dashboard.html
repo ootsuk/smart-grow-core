@@ -22,6 +22,28 @@
         </div>
     </div>
 
+    <!-- AI解析レポートカード -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-robot text-success"></i> 本日のAI分析レポート
+                    </h5>
+                </div>
+                <div class="card-body" id="ai-report-container">
+                    <!-- AI解析レポートがここに動的に表示される -->
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-success" role="status">
+                            <span class="visually-hidden">読み込み中...</span>
+                        </div>
+                        <p class="text-muted mt-2">AI解析レポートを読み込み中...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- センサーデータカード -->
     <div class="row g-3 mb-4">
         <!-- 温度カード -->
@@ -200,6 +222,7 @@ function updateDashboard() {
             if (data.success) {
                 updateSensorCards(data.sensor_data);
                 updateLatestImage(data.latest_image);
+                displayAIReport(data.latest_ai_report);
                 updateNextSchedules(data.next_schedules);
                 updateRecentAlerts(data.alerts);
             } else {
@@ -420,11 +443,188 @@ function getLogLevelBadge(logLevel) {
     return badges[logLevel] || 'bg-secondary';
 }
 
+// AI解析レポートの表示
+function displayAIReport(aiReport) {
+    const container = document.getElementById('ai-report-container');
+    
+    if (!aiReport) {
+        // レポートがない場合
+        container.innerHTML = `
+            <div class="text-center py-3">
+                <i class="fas fa-clock text-muted" style="font-size: 3rem;"></i>
+                <p class="text-muted mt-3 mb-0">
+                    本日のAI分析はまだ実行されていません。<br>
+                    毎日9時に自動で新しい写真を撮影し、AI分析を実行します。
+                </p>
+            </div>
+        `;
+        return;
+    }
+    
+    // 成長率に応じた星評価
+    const stars = getStarRating(aiReport.growth_rate);
+    
+    // タイムスタンプをフォーマット
+    const timestamp = new Date(aiReport.timestamp).toLocaleString('ja-JP');
+    
+    container.innerHTML = `
+        <div class="row">
+            <div class="col-md-8">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="me-3">
+                        <div style="font-size: 2rem;">${stars}</div>
+                    </div>
+                    <div>
+                        <h5 class="mb-1">成長率: ${aiReport.growth_rate}%</h5>
+                        <small class="text-muted">
+                            <i class="fas fa-clock"></i> ${timestamp}
+                        </small>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <h6 class="text-muted">状態サマリー</h6>
+                    <p class="mb-0">${aiReport.ai_summary || 'データなし'}</p>
+                </div>
+                
+                <button class="btn btn-success btn-sm" onclick="showAIDetailModal(${aiReport.report_id})">
+                    <i class="fas fa-search-plus"></i> 詳細を見る
+                </button>
+            </div>
+            <div class="col-md-4 text-center">
+                ${aiReport.image_path ? 
+                    `<img src="/${aiReport.image_path}" alt="分析画像" 
+                          class="img-fluid rounded" style="max-height: 200px; cursor: pointer;"
+                          onclick="showAIDetailModal(${aiReport.report_id})">` 
+                    : '<p class="text-muted">画像なし</p>'}
+            </div>
+        </div>
+    `;
+}
+
+// 成長率から星評価を生成
+function getStarRating(growthRate) {
+    const starCount = Math.ceil(growthRate / 20); // 0-20%=1, 21-40%=2, etc.
+    const fullStars = '⭐'.repeat(Math.min(starCount, 5));
+    const emptyStars = '☆'.repeat(Math.max(0, 5 - starCount));
+    return fullStars + emptyStars;
+}
+
+// AI詳細モーダルを表示
+let currentAIReportId = null;
+
+function showAIDetailModal(reportId) {
+    currentAIReportId = reportId;
+    
+    // APIでレポート詳細を取得
+    fetch(`/api/ai-report/${reportId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const report = data.report;
+                const modalBody = document.getElementById('ai-modal-body');
+                const timestamp = new Date(report.timestamp).toLocaleString('ja-JP');
+                const stars = getStarRating(report.growth_rate);
+                
+                modalBody.innerHTML = `
+                    <div class="text-center mb-4">
+                        ${report.image_path ? 
+                            `<img src="/${report.image_path}" alt="分析画像" 
+                                  class="img-fluid rounded mb-3" style="max-height: 400px;">` 
+                            : ''}
+                        <div class="mb-2">
+                            <div style="font-size: 3rem;">${stars}</div>
+                        </div>
+                        <h4>成長率: ${report.growth_rate}%</h4>
+                        <small class="text-muted">
+                            <i class="fas fa-clock"></i> ${timestamp}
+                        </small>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <h5><i class="fas fa-clipboard-check text-success"></i> 状態サマリー</h5>
+                        <p class="lead">${report.ai_summary || 'データなし'}</p>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <h5><i class="fas fa-lightbulb text-warning"></i> アドバイス</h5>
+                        <div class="alert alert-info">
+                            ${formatAdvice(report.ai_advice)}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <h6 class="text-muted"><i class="fas fa-info-circle"></i> 分析情報</h6>
+                        <ul class="list-unstyled small">
+                            <li><strong>レイヤー:</strong> Layer ${report.layer_id}</li>
+                            <li><strong>モデル:</strong> ${report.llm_model_name || 'N/A'}</li>
+                            <li><strong>分析日時:</strong> ${timestamp}</li>
+                        </ul>
+                    </div>
+                `;
+                
+                // モーダルを表示
+                const modal = new bootstrap.Modal(document.getElementById('aiDetailModal'));
+                modal.show();
+            }
+        })
+        .catch(error => {
+            console.error('AI詳細取得エラー:', error);
+            alert('AI解析レポートの取得に失敗しました。');
+        });
+}
+
+// アドバイステキストをフォーマット
+function formatAdvice(advice) {
+    if (!advice) return 'アドバイスなし';
+    
+    // 箇条書きを検出して整形
+    const lines = advice.split('\n');
+    let formatted = '<ul>';
+    lines.forEach(line => {
+        line = line.trim();
+        if (line.startsWith('•') || line.startsWith('-') || line.startsWith('*')) {
+            formatted += `<li>${line.substring(1).trim()}</li>`;
+        } else if (line) {
+            formatted += `<li>${line}</li>`;
+        }
+    });
+    formatted += '</ul>';
+    
+    return formatted;
+}
+
 // 初回読み込み
 updateDashboard();
 
 // 10秒ごとに自動更新
 setInterval(updateDashboard, 10000);
 </script>
+
+<!-- AI詳細モーダル -->
+<div class="modal fade" id="aiDetailModal" tabindex="-1" aria-labelledby="aiDetailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="aiDetailModalLabel">
+                    <i class="fas fa-robot"></i> AI分析レポート詳細
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="ai-modal-body">
+                <div class="text-center py-4">
+                    <div class="spinner-border text-success" role="status">
+                        <span class="visually-hidden">読み込み中...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i> 閉じる
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
