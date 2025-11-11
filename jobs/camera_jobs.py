@@ -13,7 +13,11 @@ def get_file_name():
 
 def save_image(frame, file_path):
     """画像をJPEG形式で保存"""
-    # [int(cv2.IMWRITE_JPEG_QUALITY), 95] は画像品質設定です
+    # 拡張子を強制的に .jpg にする
+    if not file_path.lower().endswith(('.jpg', '.jpeg')):
+        file_path = file_path.rsplit('.', 1)[0] + '.jpg'
+    
+    # JPEG形式で保存（品質95%）
     cv2.imwrite(file_path, frame, [int(cv2.IMWRITE_JPEG_QUALITY), 95])
 
 def delete_old_images(save_dir):
@@ -21,7 +25,10 @@ def delete_old_images(save_dir):
     today = datetime.datetime.now()
     cutoff_date = today - datetime.timedelta(days=RETENTION_DAYS)
     
-    image_files = glob.glob(os.path.join(save_dir, "*.jp*g"))
+    # jpg, jpeg, png形式の画像を対象にする
+    image_files = []
+    for ext in ['*.jpg', '*.jpeg', '*.png']:
+        image_files.extend(glob.glob(os.path.join(save_dir, ext)))
     
     for file_path in image_files:
         try:

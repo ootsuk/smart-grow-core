@@ -211,23 +211,56 @@ def api_sensor_history():
 
 @app.route('/api/images')
 def api_images():
-    """画像一覧を取得"""
+    """画像一覧を取得（ファイルシステムから直接）"""
     try:
-        layer_id = request.args.get('layer_id', 1, type=int)
-        limit = request.args.get('limit', 50, type=int)
+        import glob
+        from datetime import datetime
         
-        with open_db() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                SELECT image_path, timestamp
-                FROM ai_reports
-                WHERE layer_id = ?
-                ORDER BY timestamp DESC
-                LIMIT ?
-            """, (layer_id, limit))
+        layer_id = request.args.get('layer_id', 1, type=int)
+        limit = request.args.get('limit', 100, type=int)
+        
+        # plant_imagesディレクトリのパス
+        parent_dir = Path(__file__).parent.parent
+        image_dir = parent_dir / 'plant_images' / f'layer_{layer_id}'
+        
+        if not image_dir.exists():
+            return jsonify({
+                'success': True,
+                'images': []
+            })
+        
+        # jpg, jpeg, png形式の画像を取得
+        image_files = []
+        for ext in ['*.jpg', '*.jpeg', '*.png']:
+            image_files.extend(glob.glob(str(image_dir / ext)))
+        
+        # ファイル名から日時を抽出してソート
+        images = []
+        for file_path in image_files:
+            filename = os.path.basename(file_path)
+            # ファイル名から日時を抽出（例: 20251110_090001.jpg）
+            try:
+                date_str = filename.split('.')[0]  # 拡張子を除去
+                timestamp = datetime.strptime(date_str, '%Y%m%d_%H%M%S').isoformat()
+            except:
+                # パースできない場合はファイルの更新日時を使用
+                mtime = os.path.getmtime(file_path)
+                timestamp = datetime.fromtimestamp(mtime).isoformat()
             
-            rows = cursor.fetchall()
-            images = [dict(row) for row in rows]
+            # 相対パスを生成
+            relative_path = f'plant_images/layer_{layer_id}/{filename}'
+            
+            images.append({
+                'image_path': relative_path,
+                'timestamp': timestamp,
+                'filename': filename
+            })
+        
+        # 日時でソート（新しい順）
+        images.sort(key=lambda x: x['timestamp'], reverse=True)
+        
+        # 件数制限
+        images = images[:limit]
         
         return jsonify({
             'success': True,
