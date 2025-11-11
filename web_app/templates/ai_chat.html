@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block title %}AI相談チャット - Smart Grow System{% endblock %}
+
+{% block extra_head %}
+<!-- Marked.js (Markdown Parser) -->
+<script src="https://cdn.jsdelivr.net/npm/marked@11.0.0/marked.min.js"></script>
+<!-- Highlight.js (Code Syntax Highlighting) -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<!-- Custom CSS -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/ai_chat.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <div class="page-header">
+                <h1 class="display-6 mb-3">
+                    <i class="fas fa-robot text-success"></i> AI相談チャット
+                </h1>
+                <p class="text-muted">豆苗栽培のAI専門家に質問してみましょう</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 画像選択エリア -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body py-2">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-image text-primary me-2"></i>
+                            <small class="text-muted me-2">画像:</small>
+                            <select class="form-select form-select-sm" id="image-selector" style="width: auto;">
+                                <option value="">選択なし</option>
+                            </select>
+                        </div>
+                        <div id="selected-image-preview" style="display: none;">
+                            <img src="" alt="選択画像" class="img-thumbnail" style="height: 40px; cursor: pointer;" onclick="showImagePreview()">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- クイックアクションボタン -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body py-2">
+                    <div class="d-flex align-items-center flex-wrap gap-2">
+                        <small class="text-muted me-2">⚡ クイック質問:</small>
+                        <button class="btn btn-sm btn-outline-success quick-action-btn" data-question="現在の成長率を分析してください">
+                            <i class="fas fa-seedling"></i> 成長率分析
+                        </button>
+                        <button class="btn btn-sm btn-outline-warning quick-action-btn" data-question="収穫時期を判断してください">
+                            <i class="fas fa-cut"></i> 収穫判断
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger quick-action-btn" data-question="病気や異常がないかチェックしてください">
+                            <i class="fas fa-stethoscope"></i> 病気診断
+                        </button>
+                        <button class="btn btn-sm btn-outline-info quick-action-btn" data-question="栽培のアドバイスをください">
+                            <i class="fas fa-lightbulb"></i> 栽培アドバイス
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- チャットエリア -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm chat-card">
+                <div class="card-body p-0">
+                    <div class="chat-container" id="chat-container">
+                        <!-- 初期メッセージ -->
+                        <div class="message ai-message">
+                            <div class="message-avatar">
+                                <i class="fas fa-robot"></i>
+                            </div>
+                            <div class="message-bubble ai-bubble">
+                                <div class="message-content">
+                                    <strong>AI栽培アシスタント</strong>
+                                    <p class="mb-0 mt-2">こんにちは！豆苗栽培の専門AIアシスタントです。</p>
+                                    <p class="mb-0">画像を選択して質問してください。システムのセンサーデータも自動で参照します。</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-white">
+                    <form id="chat-form" class="d-flex gap-2">
+                        <input 
+                            type="text" 
+                            class="form-control" 
+                            id="user-input" 
+                            placeholder="質問を入力してください..."
+                            autocomplete="off"
+                        >
+                        <button type="submit" class="btn btn-success" id="send-btn">
+                            <i class="fas fa-paper-plane"></i> 送信
+                        </button>
+                    </form>
+                    <!-- システム情報 -->
+                    <div class="mt-2">
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle"></i> 
+                            <span id="system-info-display">システム情報: 読み込み中...</span>
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 画像プレビューモーダル -->
+<div class="modal fade" id="imagePreviewModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">画像プレビュー</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center">
+                <img src="" id="modal-preview-image" class="img-fluid" alt="プレビュー">
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/ai_chat.js') }}"></script>
+{% endblock %}
+

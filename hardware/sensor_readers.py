@@ -107,8 +107,14 @@ def read_pressure_sensor(sim_name: str) -> float | None:
         print(f"{sim_name} Pressure Sensor Simulation: 読み取りエラー（Noneを返します）")
         return None
     
-    # ダミー値: 圧力は1013mbar(空)〜1062mbar(満タン)の範囲、水温は18〜25℃の範囲
-    dummy_pressure = random.uniform(1013.0, 1062.0)
+    # ダミー値: センサーの種類によって異なる範囲を設定
+    if sim_name == "Supply":
+        # 給水タンク: 100〜150 kPa (満タン時は高圧)
+        dummy_pressure = random.uniform(100.0, 150.0)
+    else:  # "Drain"
+        # 排水タンク: 50〜100 kPa (通常は低圧、溜まると上昇)
+        dummy_pressure = random.uniform(50.0, 100.0)
+    
     return round(dummy_pressure, 2)
 
 def read_supply_pressure() -> float | None:
