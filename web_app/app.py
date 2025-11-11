@@ -118,10 +118,13 @@ def logs():
 def api_dashboard_data():
     """ダッシュボード用のデータをJSON形式で返す"""
     try:
-        layer_id = request.args.get('layer_id', 1, type=int)
+        # センサーデータはLayer 0（システム全体）から取得
+        sensor_data = get_latest_sensor_data(layer_id=0)
         
-        sensor_data = get_latest_sensor_data(layer_id)
-        latest_image = get_latest_image(layer_id)
+        # 画像は指定されたlayer（デフォルト=1）から取得
+        image_layer_id = request.args.get('layer_id', 1, type=int)
+        latest_image = get_latest_image(image_layer_id)
+        
         alerts = get_recent_alerts(5)
         next_schedules = get_next_schedules(3)
         
@@ -143,7 +146,8 @@ def api_dashboard_data():
 def api_sensor_history():
     """センサー履歴データを取得（グラフ用）"""
     try:
-        layer_id = request.args.get('layer_id', 1, type=int)
+        # センサーデータはLayer 0（システム全体）から取得
+        layer_id = 0
         hours = request.args.get('hours', 24, type=int)
         
         start_time = (datetime.now() - timedelta(hours=hours)).isoformat()
