@@ -229,11 +229,55 @@ async function loadSensorData() {
         const sensorData = data.sensor_data || {};
         currentSensorData = sensorData;
         
-        // センサーデータをグローバル変数に保存（送信時に使用）
-        // 注意: システム情報表示エリアは使用していないため、DOM更新は不要
+        // システム情報表示エリアを更新
+        updateSensorDisplay(sensorData);
         
     } catch (error) {
         console.error('センサーデータ読み込みエラー:', error);
+    }
+}
+
+// システム情報表示エリアを更新
+function updateSensorDisplay(sensorData) {
+    // 温度表示を更新
+    const tempDisplay = document.getElementById('sensor-temp-display');
+    if (tempDisplay) {
+        const temp = (sensorData.temperature !== null && sensorData.temperature !== undefined) 
+            ? `${sensorData.temperature}℃` : 'N/A';
+        tempDisplay.innerHTML = `
+            <i class="fas fa-temperature-high text-danger"></i>
+            <strong>温度:</strong> ${temp}
+        `;
+    }
+    
+    // 湿度表示を更新
+    const humidDisplay = document.getElementById('sensor-humid-display');
+    if (humidDisplay) {
+        const humid = (sensorData.humidity !== null && sensorData.humidity !== undefined) 
+            ? `${sensorData.humidity}%` : 'N/A';
+        humidDisplay.innerHTML = `
+            <i class="fas fa-tint text-info"></i>
+            <strong>湿度:</strong> ${humid}
+        `;
+    }
+    
+    // 測定時刻表示を更新
+    const timeDisplay = document.getElementById('sensor-time-display');
+    if (timeDisplay) {
+        let timeStr = 'N/A';
+        if (sensorData.timestamp) {
+            const dt = new Date(sensorData.timestamp);
+            timeStr = dt.toLocaleString('ja-JP', {
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+        timeDisplay.innerHTML = `
+            <i class="fas fa-clock text-warning"></i>
+            <strong>測定:</strong> ${timeStr}
+        `;
     }
 }
 

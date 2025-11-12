@@ -220,7 +220,7 @@
 
 /* チャット内の添付画像スタイル */
 .attached-image {
-    max-width: 250px;
+    max-width: 200px;
     max-height: 200px;
     object-fit: cover;
     border-radius: 8px;
