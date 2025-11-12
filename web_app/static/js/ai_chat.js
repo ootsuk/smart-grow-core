@@ -229,16 +229,8 @@ async function loadSensorData() {
         const sensorData = data.sensor_data || {};
         currentSensorData = sensorData;
         
-        // システム情報の表示を更新（null/undefinedチェックに変更して0を許容）
-        const temp = (sensorData.temperature !== null && sensorData.temperature !== undefined) ? `${sensorData.temperature}℃` : 'N/A';
-        const humid = (sensorData.humidity !== null && sensorData.humidity !== undefined) ? `${sensorData.humidity}%` : 'N/A';
-        
-        // タイムスタンプを表示形式に変換
-        let timeStr = '';
-        if (sensorData.timestamp) {
-            const dt = new Date(sensorData.timestamp);
-            timeStr = ` (${dt.toLocaleString('ja-JP', {month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'})})`;
-        }
+        // センサーデータをグローバル変数に保存（送信時に使用）
+        // 注意: システム情報表示エリアは使用していないため、DOM更新は不要
         
     } catch (error) {
         console.error('センサーデータ読み込みエラー:', error);
@@ -327,6 +319,9 @@ async function sendMessage() {
     // ユーザーメッセージを表示
     addUserMessage(message, selectedImageFilename);
     
+    // 📎 画像プレビューを即座に削除（送信直後）
+    removeAttachedImage();
+    
     // 入力欄をクリア
     input.value = '';
     
@@ -381,9 +376,6 @@ async function sendMessage() {
             // AIメッセージを表示
             addAIMessage(data.response);
         }
-        
-        // 添付画像プレビューを自動削除（送信成功後）
-        removeAttachedImage();
         
     } catch (error) {
         console.error('メッセージ送信エラー:', error);

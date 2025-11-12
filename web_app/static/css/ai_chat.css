@@ -218,6 +218,23 @@
     }
 }
 
+/* チャット内の添付画像スタイル */
+.attached-image {
+    max-width: 250px;
+    max-height: 200px;
+    object-fit: cover;
+    border-radius: 8px;
+    margin-top: 0.5rem;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.attached-image:hover {
+    transform: scale(1.02);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
 /* アニメーション */
 @keyframes fadeIn {
     from {
