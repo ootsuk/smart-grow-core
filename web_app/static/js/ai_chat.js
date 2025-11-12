@@ -377,10 +377,11 @@ async function sendMessage() {
         // 🔥 送信直前に最新のセンサーデータを取得
         await loadSensorData();
         
-        // センサーデータからタンク圧力を除外
+        // センサーデータからタンク圧力を除外（測定時刻は保持）
         const sensorDataWithoutTank = currentSensorData ? {
             temperature: currentSensorData.temperature,
-            humidity: currentSensorData.humidity
+            humidity: currentSensorData.humidity,
+            timestamp: currentSensorData.timestamp
         } : null;
         
         // システムメッセージ（送信データ）を表示（タンク圧力なし）
