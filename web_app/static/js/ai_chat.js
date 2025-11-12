@@ -232,8 +232,6 @@ async function loadSensorData() {
         // システム情報の表示を更新（null/undefinedチェックに変更して0を許容）
         const temp = (sensorData.temperature !== null && sensorData.temperature !== undefined) ? `${sensorData.temperature}℃` : 'N/A';
         const humid = (sensorData.humidity !== null && sensorData.humidity !== undefined) ? `${sensorData.humidity}%` : 'N/A';
-        const supply = (sensorData.supply_pressure !== null && sensorData.supply_pressure !== undefined) ? `${sensorData.supply_pressure} kPa` : 'N/A';
-        const drain = (sensorData.drain_pressure !== null && sensorData.drain_pressure !== undefined) ? `${sensorData.drain_pressure} kPa` : 'N/A';
         
         // タイムスタンプを表示形式に変換
         let timeStr = '';
@@ -266,10 +264,9 @@ function addSystemMessage(sensorData, imagePath) {
     }
     
     // センサーデータ（null/undefinedチェックに変更して0を許容）
+    // 注意: タンク圧力データは植物成長に直接関係ないため除外
     const temp = (sensorData.temperature !== null && sensorData.temperature !== undefined) ? `${sensorData.temperature}℃` : 'N/A';
     const humid = (sensorData.humidity !== null && sensorData.humidity !== undefined) ? `${sensorData.humidity}%` : 'N/A';
-    const supply = (sensorData.supply_pressure !== null && sensorData.supply_pressure !== undefined) ? `${sensorData.supply_pressure} kPa` : 'N/A';
-    const drain = (sensorData.drain_pressure !== null && sensorData.drain_pressure !== undefined) ? `${sensorData.drain_pressure} kPa` : 'N/A';
     
     // 測定時刻
     let timeStr = 'N/A';
@@ -299,14 +296,6 @@ function addSystemMessage(sensorData, imagePath) {
                     <div class="data-item">
                         <i class="fas fa-tint text-info"></i>
                         <span>${humid}</span>
-                    </div>
-                    <div class="data-item">
-                        <i class="fas fa-water text-primary"></i>
-                        <span>給水: ${supply}</span>
-                    </div>
-                    <div class="data-item">
-                        <i class="fas fa-faucet text-secondary"></i>
-                        <span>排水: ${drain}</span>
                     </div>
                 </div>
                 <div class="data-row">

@@ -727,10 +727,7 @@ def create_system_prompt(sensor_data, image_filename):
             prompt += f"- 温度: {sensor_data['temperature']}℃\n"
         if 'humidity' in sensor_data and sensor_data['humidity']:
             prompt += f"- 湿度: {sensor_data['humidity']}%\n"
-        if 'supply_pressure' in sensor_data and sensor_data['supply_pressure']:
-            prompt += f"- 給水タンク圧力: {sensor_data['supply_pressure']} kPa\n"
-        if 'drain_pressure' in sensor_data and sensor_data['drain_pressure']:
-            prompt += f"- 排水タンク圧力: {sensor_data['drain_pressure']} kPa\n"
+        # 注意: タンク圧力データは植物成長分析に不要なため除外
     
     # 画像情報を追加
     if image_filename:
