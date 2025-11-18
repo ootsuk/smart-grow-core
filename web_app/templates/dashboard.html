@@ -194,6 +194,8 @@
 {% endblock %}
 
 {% block extra_scripts %}
+<!-- Markdown レンダリング用ライブラリ -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script>
 // ダッシュボードデータの更新
 function updateDashboard() {
@@ -405,6 +407,87 @@ function getLogLevelBadge(logLevel) {
     return badges[logLevel] || 'bg-secondary';
 }
 
+// Markdownプレビュー用ヘルパー
+function escapeHtml(text) {
+    if (text === null || text === undefined) return '';
+    return text.replace(/[&<>'"]/g, function(ch) {
+        const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#39;' };
+        return map[ch] || ch;
+    });
+}
+
+function stripMarkdown(text) {
+    if (!text) return '';
+    return text
+        .replace(/```[\s\S]*?```/g, '')
+        .replace(/`([^`]+)`/g, '$1')
+        .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
+        .replace(/\[[^\]]*\]\([^)]*\)/g, '$1')
+        .replace(/[#!*_>~`]/g, '')
+        .replace(/\r\n/g, '\n')
+        .replace(/\n+/g, ' ')
+        .trim();
+}
+
+function extractSummaryPreview(markdown, maxChars = 160) {
+    if (!markdown) {
+        return { html: '', truncated: false };
+    }
+    const paragraphs = markdown.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
+    const source = paragraphs.length ? paragraphs[0] : markdown;
+    const plain = stripMarkdown(source);
+    if (!plain) {
+        return { html: '', truncated: false };
+    }
+    let truncated = false;
+    let preview = plain;
+    if (plain.length > maxChars) {
+        truncated = true;
+        preview = plain.slice(0, maxChars).trim();
+    }
+    if (truncated) {
+        preview = preview.replace(/[。！!?.,\s]*$/, '');
+        preview += '…';
+    }
+    return { html: escapeHtml(preview), truncated };
+}
+
+function extractAdvicePreview(markdown, maxItems = 2, maxCharsPerItem = 120) {
+    if (!markdown) {
+        return { listHtml: '', remaining: 0 };
+    }
+    const lines = markdown.split('\n');
+    const bulletPattern = /^(\s*[-*•]\s+|\s*\d+\.\s+)/;
+    const tips = [];
+    for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        if (bulletPattern.test(trimmed)) {
+            let content = trimmed.replace(bulletPattern, '').trim();
+            content = stripMarkdown(content);
+            if (content) {
+                tips.push(content);
+            }
+        }
+    }
+    if (tips.length === 0) {
+        return { listHtml: '', remaining: 0 };
+    }
+    const previewItems = [];
+    const limit = Math.min(tips.length, maxItems);
+    for (let i = 0; i < limit; i++) {
+        let item = tips[i];
+        if (item.length > maxCharsPerItem) {
+            item = item.slice(0, maxCharsPerItem).trim();
+            item = item.replace(/[。！!?.,\s]*$/, '');
+            item += '…';
+        }
+        previewItems.push(`<li>${escapeHtml(item)}</li>`);
+    }
+    const remaining = tips.length - limit;
+    return { listHtml: previewItems.join(''), remaining };
+}
+
 // AI解析レポートの表示
 function displayAIReport(aiReport) {
     const container = document.getElementById('ai-report-container');
@@ -429,6 +512,10 @@ function displayAIReport(aiReport) {
     // タイムスタンプをフォーマット
     const timestamp = new Date(aiReport.timestamp).toLocaleString('ja-JP');
     
+    // MarkdownをHTMLに変換
+    const summaryHtml = aiReport.ai_summary ? marked.parse(aiReport.ai_summary) : 'データなし';
+    const adviceHtml = aiReport.ai_advice ? marked.parse(aiReport.ai_advice) : '';
+    
     container.innerHTML = `
         <div class="row">
             <div class="col-md-8">
@@ -446,8 +533,15 @@ function displayAIReport(aiReport) {
                 
                 <div class="mb-3">
                     <h6 class="text-muted">状態サマリー</h6>
-                    <p class="mb-0">${aiReport.ai_summary || 'データなし'}</p>
+                    <div class="markdown-content">${summaryHtml}</div>
                 </div>
+                
+                ${adviceHtml ? `
+                <div class="mb-3">
+                    <h6 class="text-muted">アドバイス</h6>
+                    <div class="markdown-content">${adviceHtml}</div>
+                </div>
+                ` : ''}
                 
                 <button class="btn btn-success btn-sm" onclick="showAIDetailModal(${aiReport.report_id})">
                     <i class="fas fa-search-plus"></i> 詳細を見る
@@ -488,6 +582,10 @@ function showAIDetailModal(reportId) {
                 const timestamp = new Date(report.timestamp).toLocaleString('ja-JP');
                 const stars = getStarRating(report.growth_rate);
                 
+                // MarkdownをHTMLに変換
+                const summaryHtml = report.ai_summary ? marked.parse(report.ai_summary) : 'データなし';
+                const adviceHtml = report.ai_advice ? marked.parse(report.ai_advice) : 'アドバイスなし';
+                
                 modalBody.innerHTML = `
                     <div class="text-center mb-4">
                         ${report.image_path ? 
@@ -505,13 +603,13 @@ function showAIDetailModal(reportId) {
                     
                     <div class="mb-4">
                         <h5><i class="fas fa-clipboard-check text-success"></i> 状態サマリー</h5>
-                        <p class="lead">${report.ai_summary || 'データなし'}</p>
+                        <div class="markdown-content lead">${summaryHtml}</div>
                     </div>
                     
                     <div class="mb-4">
                         <h5><i class="fas fa-lightbulb text-warning"></i> アドバイス</h5>
-                        <div class="alert alert-info">
-                            ${formatAdvice(report.ai_advice)}
+                        <div class="alert alert-info markdown-content">
+                            ${adviceHtml}
                         </div>
                     </div>
                     

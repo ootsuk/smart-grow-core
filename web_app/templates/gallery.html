@@ -170,11 +170,13 @@
 .calendar-grid {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
+    grid-auto-rows: minmax(100px, auto); /* 6行対応: 最小100px、コンテンツに応じて拡大 */
     gap: 5px;
 }
 
 .calendar-day {
-    aspect-ratio: 1;
+    /* aspect-ratio: 1; ← 削除（6行の月で崩れるため） */
+    min-height: 100px; /* 最小高さを確保 */
     border: 1px solid #dee2e6;
     border-radius: 5px;
     padding: 8px;
@@ -227,9 +229,40 @@
 }
 
 /* モバイル対応 */
-@media (max-width: 576px) {
+@media (max-width: 768px) {
+    .calendar-grid {
+        grid-auto-rows: minmax(80px, auto);
+    }
+    
     .calendar-day {
+        min-height: 80px;
+        padding: 6px;
+    }
+    
+    .calendar-day-header {
+        padding: 8px;
+        font-size: 0.9rem;
+    }
+    
+    .day-number {
+        font-size: 1rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .calendar-grid {
+        grid-auto-rows: minmax(70px, auto);
+        gap: 3px;
+    }
+    
+    .calendar-day {
+        min-height: 70px;
         padding: 5px;
+    }
+    
+    .calendar-day-header {
+        padding: 6px;
+        font-size: 0.85rem;
     }
     
     .day-number {
@@ -252,6 +285,9 @@
     transform: scale(1.05);
 }
 </style>
+
+<!-- Markdown レンダリング用ライブラリ -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
 <script>
 // グローバル変数
@@ -510,6 +546,87 @@ function fetchSensorData(timestamp) {
         });
 }
 
+// Markdownプレビュー用ヘルパー（ダッシュボードと同じ）
+function escapeHtml(text) {
+    if (text === null || text === undefined) return '';
+    return text.replace(/[&<>'"]/g, function(ch) {
+        const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#39;' };
+        return map[ch] || ch;
+    });
+}
+
+function stripMarkdown(text) {
+    if (!text) return '';
+    return text
+        .replace(/```[\s\S]*?```/g, '')
+        .replace(/`([^`]+)`/g, '$1')
+        .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
+        .replace(/\[[^\]]*\]\([^)]*\)/g, '$1')
+        .replace(/[#!*_>~`]/g, '')
+        .replace(/\r\n/g, '\n')
+        .replace(/\n+/g, ' ')
+        .trim();
+}
+
+function extractSummaryPreview(markdown, maxChars = 150) {
+    if (!markdown) {
+        return { html: '', truncated: false };
+    }
+    const paragraphs = markdown.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
+    const source = paragraphs.length ? paragraphs[0] : markdown;
+    const plain = stripMarkdown(source);
+    if (!plain) {
+        return { html: '', truncated: false };
+    }
+    let truncated = false;
+    let preview = plain;
+    if (plain.length > maxChars) {
+        truncated = true;
+        preview = plain.slice(0, maxChars).trim();
+    }
+    if (truncated) {
+        preview = preview.replace(/[。！!?.,\s]*$/, '');
+        preview += '…';
+    }
+    return { html: escapeHtml(preview), truncated };
+}
+
+function extractAdvicePreview(markdown, maxItems = 2, maxCharsPerItem = 120) {
+    if (!markdown) {
+        return { listHtml: '', remaining: 0 };
+    }
+    const lines = markdown.split('\n');
+    const bulletPattern = /^(\s*[-*•]\s+|\s*\d+\.\s+)/;
+    const tips = [];
+    for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        if (bulletPattern.test(trimmed)) {
+            let content = trimmed.replace(bulletPattern, '').trim();
+            content = stripMarkdown(content);
+            if (content) {
+                tips.push(content);
+            }
+        }
+    }
+    if (tips.length === 0) {
+        return { listHtml: '', remaining: 0 };
+    }
+    const previewItems = [];
+    const limit = Math.min(tips.length, maxItems);
+    for (let i = 0; i < limit; i++) {
+        let item = tips[i];
+        if (item.length > maxCharsPerItem) {
+            item = item.slice(0, maxCharsPerItem).trim();
+            item = item.replace(/[。！!?.,\s]*$/, '');
+            item += '…';
+        }
+        previewItems.push(`<li>${escapeHtml(item)}</li>`);
+    }
+    const remaining = tips.length - limit;
+    return { listHtml: previewItems.join(''), remaining };
+}
+
 // AI解析レポートを取得
 function fetchAIReportForImage(imagePath) {
     const reportSection = document.getElementById('ai-report-section');
@@ -523,6 +640,10 @@ function fetchAIReportForImage(imagePath) {
                 const report = data.report;
                 const stars = getGalleryStarRating(report.growth_rate);
                 const timestamp = new Date(report.timestamp).toLocaleString('ja-JP');
+                
+                // 要約表示用にプレビューを生成
+                const summaryPreview = extractSummaryPreview(report.ai_summary, 150);
+                const advicePreview = extractAdvicePreview(report.ai_advice, 2, 120);
                 
                 reportContent.innerHTML = `
                     <div class="d-flex align-items-center mb-3">
@@ -539,17 +660,24 @@ function fetchAIReportForImage(imagePath) {
                     
                     <div class="mb-3">
                         <h6 class="text-muted">状態サマリー</h6>
-                        <p class="mb-0">${report.ai_summary || 'データなし'}</p>
+                        <p class="mb-0">${summaryPreview.html}</p>
                     </div>
                     
-                    ${report.ai_advice ? `
-                    <div class="mb-2">
+                    ${advicePreview.listHtml ? `
+                    <div class="mb-3">
                         <h6 class="text-muted"><i class="fas fa-lightbulb text-warning"></i> アドバイス</h6>
-                        <div class="alert alert-info py-2 mb-0">
-                            <small>${formatGalleryAdvice(report.ai_advice)}</small>
-                        </div>
+                        <ul class="mb-2">
+                            ${advicePreview.listHtml}
+                        </ul>
+                        ${advicePreview.remaining > 0 ? `
+                        <small class="text-muted">…ほか${advicePreview.remaining}件</small>
+                        ` : ''}
                     </div>
                     ` : ''}
+                    
+                    <button class="btn btn-success btn-sm w-100" onclick="showGalleryAIDetailModal(${report.report_id})">
+                        <i class="fas fa-search-plus"></i> 詳細を見る
+                    </button>
                 `;
                 
                 reportSection.style.display = 'block';
@@ -603,10 +731,101 @@ function navigateDay(delta) {
     updateModalContent(newDateStr);
 }
 
+// ギャラリー用AI詳細モーダルを表示
+function showGalleryAIDetailModal(reportId) {
+    // APIでレポート詳細を取得
+    fetch(`/api/ai-report/${reportId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const report = data.report;
+                const modalBody = document.getElementById('gallery-ai-modal-body');
+                const timestamp = new Date(report.timestamp).toLocaleString('ja-JP');
+                const stars = getGalleryStarRating(report.growth_rate);
+                
+                // MarkdownをHTMLに変換（全文表示）
+                const summaryHtml = report.ai_summary ? marked.parse(report.ai_summary) : 'データなし';
+                const adviceHtml = report.ai_advice ? marked.parse(report.ai_advice) : 'アドバイスなし';
+                
+                modalBody.innerHTML = `
+                    <div class="text-center mb-4">
+                        ${report.image_path ? 
+                            `<img src="/${report.image_path}" alt="分析画像" 
+                                  class="img-fluid rounded mb-3" style="max-height: 400px;">` 
+                            : ''}
+                        <div class="mb-2">
+                            <div style="font-size: 3rem;">${stars}</div>
+                        </div>
+                        <h4>成長率: ${report.growth_rate}%</h4>
+                        <small class="text-muted">
+                            <i class="fas fa-clock"></i> ${timestamp}
+                        </small>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <h5><i class="fas fa-clipboard-check text-success"></i> 状態サマリー</h5>
+                        <div class="markdown-content lead">${summaryHtml}</div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <h5><i class="fas fa-lightbulb text-warning"></i> アドバイス</h5>
+                        <div class="alert alert-info markdown-content">
+                            ${adviceHtml}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <h6 class="text-muted"><i class="fas fa-info-circle"></i> 分析情報</h6>
+                        <ul class="list-unstyled small">
+                            <li><strong>レイヤー:</strong> Layer ${report.layer_id}</li>
+                            <li><strong>モデル:</strong> ${report.llm_model_name || 'N/A'}</li>
+                            <li><strong>分析日時:</strong> ${timestamp}</li>
+                        </ul>
+                    </div>
+                `;
+                
+                // モーダルを表示
+                const modal = new bootstrap.Modal(document.getElementById('galleryAIDetailModal'));
+                modal.show();
+            }
+        })
+        .catch(error => {
+            console.error('AI詳細取得エラー:', error);
+            alert('AI解析レポートの取得に失敗しました。');
+        });
+}
+
 // 初期化
 document.addEventListener('DOMContentLoaded', function() {
     loadGallery();
 });
 </script>
+
+<!-- ギャラリー用AI詳細モーダル -->
+<div class="modal fade" id="galleryAIDetailModal" tabindex="-1" aria-labelledby="galleryAIDetailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="galleryAIDetailModalLabel">
+                    <i class="fas fa-robot"></i> AI分析レポート詳細
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="gallery-ai-modal-body">
+                <div class="text-center py-4">
+                    <div class="spinner-border text-success" role="status">
+                        <span class="visually-hidden">読み込み中...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i> 閉じる
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 

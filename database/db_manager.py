@@ -297,6 +297,27 @@ def get_latest_ai_report(layer_id):
         row = cursor.fetchone()
         return dict(row) if row else None
 
+def get_today_ai_report(layer_id):
+    """
+    本日撮影された画像の最新AI解析レポートを取得する。
+    画像ファイル名から日付を判定（YYYYMMDD形式）。
+    """
+    from datetime import datetime
+    
+    today_str = datetime.now().strftime('%Y%m%d')  # 例: '20251112'
+    
+    with open_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT * FROM ai_reports
+            WHERE layer_id = ?
+              AND image_path LIKE ?
+            ORDER BY timestamp DESC
+            LIMIT 1
+        """, (layer_id, f'%/{today_str}_%'))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
 def get_ai_report_by_image(image_path):
     """
     画像パスから対応するAI解析レポートを取得する。

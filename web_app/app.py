@@ -14,6 +14,7 @@ from database.db_manager import (
     select_schedules,
     open_db,
     get_latest_ai_report,
+    get_today_ai_report,
     get_ai_report_by_image
 )
 from datetime import datetime, timedelta
@@ -145,8 +146,8 @@ def api_dashboard_data():
         image_layer_id = request.args.get('layer_id', 1, type=int)
         latest_image = get_latest_image(image_layer_id)
         
-        # 最新のAI解析レポートを取得
-        latest_ai_report = get_latest_ai_report(image_layer_id)
+        # 本日撮影された画像のAI解析レポートを取得
+        latest_ai_report = get_today_ai_report(image_layer_id)
         
         alerts = get_recent_alerts(5)
         next_schedules = get_next_schedules(3)
@@ -685,23 +686,28 @@ def parse_ai_response_in_api(response_text):
             result['growth_rate'] = float(growth_match.group(1))
         
         # 状態サマリーを抽出
-        summary_match = re.search(r'\*\*状態サマリー[：:]\*\*\s*(.*?)(?=\*\*|$)', response_text, re.DOTALL)
+        summary_match = re.search(r'\*\*状態サマリー[：:]\*\*\s*([\s\S]*?)(?=\*\*|$)', response_text)
         if summary_match:
-            result['summary'] = summary_match.group(1).strip()[:500]
+            result['summary'] = summary_match.group(1).strip()
         else:
-            # サマリーが見つからない場合は全文の最初の200文字
-            result['summary'] = response_text[:200].strip()
+            # サマリーが見つからない場合は全文をそのまま使用
+            result['summary'] = response_text.strip()
         
-        # アドバイスを抽出
-        advice_match = re.search(r'\*\*アドバイス[：:]\*\*\s*(.*?)(?=\*\*|$)', response_text, re.DOTALL)
+        # アドバイスを抽出（段落区切りまたは次の見出しまで）
+        advice_match = re.search(r'\*\*アドバイス[：:]\*\*\s*([\s\S]*?)(?=\n\n\*\*|$)', response_text)
         if advice_match:
-            result['advice'] = advice_match.group(1).strip()[:500]
+            result['advice'] = advice_match.group(1).strip()
         else:
-            result['advice'] = '定期的な観察と管理を続けてください。'
+            # フォールバック: アドバイスセクションの終わりまで
+            advice_match2 = re.search(r'\*\*アドバイス[：:]\*\*\s*([\s\S]+)', response_text)
+            if advice_match2:
+                result['advice'] = advice_match2.group(1).strip()
+            else:
+                result['advice'] = '定期的な観察と管理を続けてください。'
         
     except Exception as e:
         print(f"[WARNING] AI response parsing error: {e}")
-        result['summary'] = response_text[:200]
+        result['summary'] = response_text.strip()
     
     return result
 

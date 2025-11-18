@@ -188,23 +188,28 @@ def parse_ai_response(response_text):
             result['growth_rate'] = float(growth_match.group(1))
         
         # 状態サマリーを抽出
-        summary_match = re.search(r'\*\*状態サマリー:\*\*\s*(.*?)(?=\*\*|$)', response_text, re.DOTALL)
+        summary_match = re.search(r'\*\*状態サマリー:\*\*\s*([\s\S]*?)(?=\*\*|$)', response_text)
         if summary_match:
-            result['summary'] = summary_match.group(1).strip()[:500]  # 最大500文字
+            result['summary'] = summary_match.group(1).strip()
         else:
-            # サマリーが見つからない場合は全文の最初の200文字
-            result['summary'] = response_text[:200].strip()
+            # サマリーが見つからない場合は全文をそのまま使用
+            result['summary'] = response_text.strip()
         
-        # アドバイスを抽出
-        advice_match = re.search(r'\*\*アドバイス:\*\*\s*(.*?)(?=\*\*|$)', response_text, re.DOTALL)
+        # アドバイスを抽出（段落区切りまたは次の見出しまで）
+        advice_match = re.search(r'\*\*アドバイス:\*\*\s*([\s\S]*?)(?=\n\n\*\*|$)', response_text)
         if advice_match:
-            result['advice'] = advice_match.group(1).strip()[:500]  # 最大500文字
+            result['advice'] = advice_match.group(1).strip()
         else:
-            result['advice'] = '定期的な水やりと環境管理を続けてください。'
+            # フォールバック: アドバイスセクションの終わりまで
+            advice_match2 = re.search(r'\*\*アドバイス:\*\*\s*([\s\S]+)', response_text)
+            if advice_match2:
+                result['advice'] = advice_match2.group(1).strip()
+            else:
+                result['advice'] = '定期的な水やりと環境管理を続けてください。'
         
     except Exception as e:
         print(f"[WARNING] AI response parsing error: {e}")
-        result['summary'] = response_text[:200]  # フォールバック
+        result['summary'] = response_text.strip()  # フォールバック
     
     return result
 

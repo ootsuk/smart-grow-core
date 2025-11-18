@@ -19,6 +19,35 @@ def get_file_name():
     now = datetime.datetime.now()
     return now.strftime("%Y%m%d_%H%M%S.jpg")
 
+def is_valid_image(frame):
+    """
+    フレームが有効な画像かチェック（真っ黒な画像を検出）
+    
+    Returns:
+        bool: 有効な画像ならTrue、真っ黒ならFalse
+    """
+    import numpy as np
+    
+    if frame is None or frame.size == 0:
+        return False
+    
+    # 画像の平均輝度を計算
+    mean_brightness = np.mean(frame)
+    
+    # 平均輝度が極端に低い（5未満）場合は真っ黒と判定
+    # 通常の画像は30以上の輝度がある
+    if mean_brightness < 5.0:
+        print(f"[CAMERA] 警告: 真っ黒な画像を検出（平均輝度: {mean_brightness:.2f}）")
+        return False
+    
+    # 画像の標準偏差をチェック（全ピクセルが同じ値の場合は0に近い）
+    std_deviation = np.std(frame)
+    if std_deviation < 1.0:
+        print(f"[CAMERA] 警告: 変化のない画像を検出（標準偏差: {std_deviation:.2f}）")
+        return False
+    
+    return True
+
 def save_image(frame, file_path):
     """画像をJPEG形式で保存"""
     # 拡張子を強制的に .jpg にする
@@ -113,6 +142,17 @@ def execute_photo_job(layer_id: int):
                 message=error_msg, 
                 details='cap.read() returned False.')
             print(f"エラー: {error_msg}")
+            return
+        
+        # 画像の有効性をチェック（真っ黒な画像を除外）
+        if not is_valid_image(frame):
+            error_msg = f"Layer {layer_id} の画像が無効（真っ黒または変化なし）。"
+            insert_system_log(
+                layer_id=layer_id, 
+                log_level='WARNING', 
+                message=error_msg, 
+                details='Image validation failed. Camera may not be connected.')
+            print(f"警告: {error_msg}")
             return
         
         file_name = get_file_name()
