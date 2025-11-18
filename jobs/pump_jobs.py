@@ -1,96 +1,58 @@
-from time import sleep
 from datetime import datetime
 from database.db_manager import select_system_config, insert_system_log
-
-# --- gpiozero を安全にインポート ---
-try:
-    from gpiozero import OutputDevice
-    GPIO_AVAILABLE = True
-except (ImportError, RuntimeError):
-    GPIO_AVAILABLE = False
-
+from hardware.pump_controller import activate_pump
 
 def execute_pump_job(layer_id: int):
     """
     水ポンプ制御ジョブ。
-    指定された層(layer_id)のポンプを一定時間ONにしてOFFにする。
-    リレーモジュール AE-G5V-DRV を使用
+    システム設定からピン番号と作動時間を取得し、ポンプ制御関数を呼び出す。
     """
-    # TODO:水圧センサ水完成後安全確認ロジックを追加 （給水、排水タンクの確認）
-    # 例:
-    # if tank_is_full():
-    #     print("[WATER JOB] 排水タンクが満タンのため中止しました。")
-    #     return
+    print(f"[{datetime.now()}] [WATER JOB START] Layer {layer_id} の水ポンプ制御を開始します。")
 
     config = select_system_config() or {}
-    pump_pin = config.get("pump_gpio_pin", 17)
+    # `pump_gpio_sig` というキー名でDBに保存されている
+    pump_pin = config.get("pump_gpio_sig", 17)
     duration = config.get("water_duration_sec", 10)
     
-    print(f"[{datetime.now()}] [WATER JOB START] Layer {layer_id} の水ポンプ制御を開始します。")
     # ログ記録: ジョブ開始
     insert_system_log(
         layer_id=layer_id, 
         log_level='INFO',
         message='Pump job started.',
-        details=f"GPIO Pin: {pump_pin}, Duration: {duration}s"
+        details=f"Attempting to run pump on GPIO {pump_pin} for {duration}s."
     )
- 
-    if not GPIO_AVAILABLE:
-        print("[INFO] GPIOライブラリが利用できない環境です。ダミーモードで動作します。")
-        print("[DUMMY] 5秒間ポンプON → OFF（実際の制御は行われません）")
-        sleep(duration)
-        print("[DUMMY] ポンプOFF完了。")
-        
-        insert_system_log(
-            layer_id=layer_id, 
-            log_level='INFO', 
-            message='GPIO library not available, running in dummy mode.', 
-            details='Dummy mode: GPIO not available, no actual pump control performed.'
-        )   
-        return
+
+    # TODO:水圧センサの値に基づいた安全確認ロジックを追加
+    # 例:
+    # supply_pressure = get_latest_tank_status(0).get('supply_pressure')
+    # if supply_pressure < config.get('supply_low_threshold'):
+    #     insert_system_log(layer_id, 'WARNING', 'Pump job skipped: Supply tank level is too low.')
+    #     print("[WATER JOB] 給水タンクの水位が低いため、ポンプ作動を中止しました。")
+    #     return
+
+    # ハードウェア制御関数を呼び出す
+    success, message = activate_pump(pin=pump_pin, duration_sec=duration)
     
-    pump = None
+    if success:
+        log_level = 'INFO'
+        log_message = 'Pump job completed successfully.'
+    else:
+        log_level = 'CRITICAL'
+        log_message = 'Error occurred during pump job.'
+
+    # ログ記録: ジョブ完了
+    insert_system_log(
+        layer_id=layer_id,
+        log_level=log_level,
+        message=log_message,
+        details=message
+    )
     
-    try:
-        pump = OutputDevice(pump_pin, active_high=False, initial_value=False)
-        # ポンプをON（リレーLOW出力）
-        pump.off()
-        print(f"[WATER JOB] ポンプを {duration} 秒間動作させます。")
-        sleep(duration)
-        #　ログ記録：成功
-        insert_system_log(
-            layer_id=layer_id, 
-            log_level='INFO', 
-            message='Pump job completed successfully.', 
-            details='Pump turned OFF after operation.'
-        )
-        
-    except Exception as e:
-        print(f"[WATER JOB ERROR] {e}")
-        insert_system_log(
-            layer_id=layer_id, 
-            log_level='CRITICAL', 
-            message='Error occurred during pump job.', 
-            details=f'[CRITICAL ERROR] pomp job failed: {e}'
-        )
-        
-    finally:
-        if pump:
-            # ポンプを確実にOFFに
-            pump.on()
-        print(f"[{datetime.now()}] [WATER JOB END] Layer {layer_id} のポンプ制御を終了しました。")
-        
-        # ログ記録: ジョブ終了
-        end_msg = f"Layer {layer_id} のポンプ制御プロセス全体を終了しました。"
-        print(f"[{datetime.now()}] [WATER JOB END] {end_msg}")
-        
-        insert_system_log(
-            layer_id=layer_id, 
-            log_level='INFO', 
-            message='Pump job process terminated.',
-            details='Pump OFF attempt was completed in finally block.'
-        )
-        
+    print(f"[{datetime.now()}] [WATER JOB END] Layer {layer_id} のポンプ制御を終了しました。 Status: {log_level}")
+
 if __name__ == "__main__":
     # テスト実行
-    execute_pump_job(layer_id=1)
+    print("ポンプジョブのテスト実行を開始します...")
+    # Layer 0 はシステム全体を指すため、テストでもそれを模倣
+    execute_pump_job(layer_id=0)
+    print("ポンプジョブのテスト実行が完了しました。")
