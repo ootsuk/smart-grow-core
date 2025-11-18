@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 # gRPC DNS設定（Gemini API用）
 os.environ['GRPC_DNS_RESOLVER'] = 'native'
 
-from database.db_manager import insert_system_log, select_system_config, open_db
+from database.db_manager import insert_system_log, select_system_config, open_db, get_previous_day_image
 from config import LLM_API_KEY
 import google.generativeai as genai
 from PIL import Image
@@ -66,21 +66,36 @@ def execute_ai_analysis_job(layer_id: int, image_path: str):
         # Gemini APIの初期化
         genai.configure(api_key=LLM_API_KEY)
         model = genai.GenerativeModel('gemini-2.5-flash')
-        
-        # 画像を読み込み
+        # 画像を読み込み (今日)
         with open(full_image_path, 'rb') as f:
-            image_bytes = f.read()
-        image_data = Image.open(io.BytesIO(image_bytes))
+            image_bytes_today = f.read()
+        image_data_today = Image.open(io.BytesIO(image_bytes_today))
+
+        # 前日の画像を取得
+        previous_day_image_path = get_previous_day_image(layer_id, image_path)
+        image_data_yesterday = None
+        if previous_day_image_path:
+            full_previous_path = project_root / previous_day_image_path
+            if full_previous_path.exists():
+                with open(full_previous_path, 'rb') as f:
+                    image_bytes_yesterday = f.read()
+                image_data_yesterday = Image.open(io.BytesIO(image_bytes_yesterday))
+                print(f"[INFO] 前日の画像を発見: {previous_day_image_path}")
         
         # 最新のセンサーデータを取得
         sensor_data = get_latest_sensor_data(layer_id)
         
         # プロンプトの作成
-        prompt = create_analysis_prompt(sensor_data)
-        
+        prompt = create_analysis_prompt(sensor_data, has_previous_image=bool(image_data_yesterday))
+
         # Gemini APIで分析
         print(f"[INFO] Gemini APIで画像分析中...")
-        response = model.generate_content([prompt, image_data])
+        if image_data_yesterday:
+            # 2枚の画像で比較分析
+            response = model.generate_content([prompt, image_data_yesterday, image_data_today])
+        else:
+            # 1枚の画像で分析
+            response = model.generate_content([prompt, image_data_today])
         ai_response = response.text
         
         print(f"[INFO] AI分析完了")
@@ -95,6 +110,7 @@ def execute_ai_analysis_job(layer_id: int, image_path: str):
             growth_rate=analysis_result['growth_rate'],
             ai_summary=analysis_result['summary'],
             ai_advice=analysis_result['advice'],
+            ai_comparison=analysis_result['comparison'],
             json_response=ai_response
         )
         
@@ -135,12 +151,34 @@ def get_latest_sensor_data(layer_id):
         return dict(row) if row else {}
 
 
-def create_analysis_prompt(sensor_data):
+def create_analysis_prompt(sensor_data, has_previous_image=False):
     """AI分析用のプロンプトを作成"""
-    prompt = """あなたは豆苗栽培の専門家AIです。
+    if has_previous_image:
+        # 2枚の画像を比較する場合のプロンプト
+        prompt = """あなたは豆苗栽培の専門家AIです。
+1枚目（昨日）と2枚目（今日）の画像を比較分析し、豆苗の成長状態を評価してください。
+
+以下の形式で厳密に回答してください：
+
+**成長率: [0-100の数値]%**
+（0%=種まき直後、100%=収穫適期）
+
+**状態サマリー:**
+（今日の豆苗の状態を2-3文で簡潔に説明）
+
+**前日比較:**
+（昨日から今日にかけての変化を具体的に説明）
+
+**アドバイス:**
+• [具体的なアドバイス1]
+• [具体的なアドバイス2]
+"""
+    else:
+        # 1枚の画像を分析する場合のプロンプト
+        prompt = """あなたは豆苗栽培の専門家AIです。
 この画像を分析して、豆苗の成長状態を評価してください。
 
-以下の形式で回答してください：
+以下の形式で厳密に回答してください：
 
 **成長率: [0-100の数値]%**
 （0%=種まき直後、100%=収穫適期）
@@ -151,70 +189,50 @@ def create_analysis_prompt(sensor_data):
 **アドバイス:**
 • [具体的なアドバイス1]
 • [具体的なアドバイス2]
-• [具体的なアドバイス3]
-
 """
-    
+
     # センサーデータを追加
     if sensor_data:
-        prompt += "\n**現在の環境データ:**\n"
-        if 'temperature' in sensor_data:
-            prompt += f"• 温度: {sensor_data['temperature']}℃\n"
-        if 'humidity' in sensor_data:
-            prompt += f"• 湿度: {sensor_data['humidity']}%\n"
-        if 'supply_pressure' in sensor_data:
-            prompt += f"• 給水タンク: {sensor_data['supply_pressure']} kPa\n"
-        if 'drain_pressure' in sensor_data:
-            prompt += f"• 排水タンク: {sensor_data['drain_pressure']} kPa\n"
+        prompt += "\n\n**現在の環境データ:**\n"
+        if 'temperature' in sensor_data and sensor_data['temperature'] is not None:
+            prompt += f"• 温度: {sensor_data['temperature']:.1f}℃\n"
+        if 'humidity' in sensor_data and sensor_data['humidity'] is not None:
+            prompt += f"• 湿度: {sensor_data['humidity']:.1f}%\n"
     
     prompt += "\n画像を分析して、上記の形式で回答してください。"
-    
     return prompt
 
 
+def _extract_section(pattern, text):
+    """正規表現で特定のセクションを抽出するヘルパー関数"""
+    import re
+    match = re.search(pattern, text, re.DOTALL)
+    return match.group(1).strip() if match else ''
+
 def parse_ai_response(response_text):
     """AIレスポンスから構造化データを抽出"""
-    result = {
-        'growth_rate': 0.0,
-        'summary': '',
-        'advice': ''
+    import re
+
+    growth_rate_match = re.search(r'\*\*成長率:\*\*\s*(\d+\.?\d*)\s*%', response_text)
+    growth_rate = float(growth_rate_match.group(1)) if growth_rate_match else 0.0
+
+    summary = _extract_section(r'\*\*状態サマリー:\*\*(.*?)(?=\n\*\*|$)', response_text)
+    comparison = _extract_section(r'\*\*前日比較:\*\*(.*?)(?=\n\*\*|$)', response_text)
+    advice = _extract_section(r'\*\*アドバイス:\*\*(.*?)(?=\n\*\*|$)', response_text)
+
+    # いずれのセクションも抽出できなかった場合は、レスポンス全体をサマリーに入れる
+    if not any([summary, comparison, advice]):
+        summary = response_text.strip()
+
+    return {
+        'growth_rate': growth_rate,
+        'summary': summary,
+        'comparison': comparison,
+        'advice': advice,
     }
-    
-    try:
-        # 成長率を抽出
-        import re
-        growth_match = re.search(r'成長率[:\s]*(\d+\.?\d*)\s*%', response_text)
-        if growth_match:
-            result['growth_rate'] = float(growth_match.group(1))
-        
-        # 状態サマリーを抽出
-        summary_match = re.search(r'\*\*状態サマリー:\*\*\s*([\s\S]*?)(?=\*\*|$)', response_text)
-        if summary_match:
-            result['summary'] = summary_match.group(1).strip()
-        else:
-            # サマリーが見つからない場合は全文をそのまま使用
-            result['summary'] = response_text.strip()
-        
-        # アドバイスを抽出（段落区切りまたは次の見出しまで）
-        advice_match = re.search(r'\*\*アドバイス:\*\*\s*([\s\S]*?)(?=\n\n\*\*|$)', response_text)
-        if advice_match:
-            result['advice'] = advice_match.group(1).strip()
-        else:
-            # フォールバック: アドバイスセクションの終わりまで
-            advice_match2 = re.search(r'\*\*アドバイス:\*\*\s*([\s\S]+)', response_text)
-            if advice_match2:
-                result['advice'] = advice_match2.group(1).strip()
-            else:
-                result['advice'] = '定期的な水やりと環境管理を続けてください。'
-        
-    except Exception as e:
-        print(f"[WARNING] AI response parsing error: {e}")
-        result['summary'] = response_text.strip()  # フォールバック
-    
-    return result
 
 
-def save_ai_report(layer_id, image_path, growth_rate, ai_summary, ai_advice, json_response):
+def save_ai_report(layer_id, image_path, growth_rate, ai_summary, ai_advice, ai_comparison, json_response):
     """AI解析結果をデータベースに保存"""
     timestamp = datetime.now().isoformat()
     
@@ -222,11 +240,11 @@ def save_ai_report(layer_id, image_path, growth_rate, ai_summary, ai_advice, jso
         conn.execute("""
             INSERT INTO ai_reports (
                 layer_id, timestamp, image_path, growth_rate, ai_summary, ai_advice,
-                json_response, slack_sent, llm_model_name, last_updated
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 'gemini-2.5-flash', ?)
+                ai_comparison, json_response, slack_sent, llm_model_name, last_updated
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 'gemini-2.5-flash', ?)
         """, (
             layer_id, timestamp, image_path, growth_rate, ai_summary, ai_advice,
-            json_response, timestamp
+            ai_comparison, json_response, timestamp
         ))
     
     print(f"[INFO] AI解析結果をデータベースに保存しました")

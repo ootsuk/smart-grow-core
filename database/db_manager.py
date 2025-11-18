@@ -100,16 +100,17 @@ def get_create_table_queries():
         CREATE TABLE IF NOT EXISTS ai_reports (
             report_id INTEGER PRIMARY KEY AUTOINCREMENT,
             layer_id INTEGER NOT NULL,
-            timestamp TEXT NOT NULL,                 -- 撮影時刻
-            image_path TEXT NOT NULL,                -- 解析対象の画像パス
-            growth_rate REAL,                        -- 成長率（AI出力）
-            ai_summary TEXT,                         -- AIによる要約
-            ai_advice TEXT,                          -- AIによるアドバイス
-            json_response TEXT,                      -- 元のAIレスポンス（JSON丸ごと保存）
-            slack_sent INTEGER DEFAULT 0,            -- Slack通知済みフラグ（0:未送信, 1:送信済み）
-            error_log TEXT,                          -- AIやSlack通知時のエラーログ（任意）
-            llm_model_name TEXT,                     -- 使用したモデル（例: gpt-4-turbo）
-            last_updated TEXT NOT NULL,              -- 最終更新日時
+            timestamp TEXT NOT NULL,
+            image_path TEXT NOT NULL,
+            growth_rate REAL,
+            ai_summary TEXT,
+            ai_advice TEXT,
+            ai_comparison TEXT, -- Added: 前日比較の結果
+            json_response TEXT,
+            slack_sent INTEGER DEFAULT 0,
+            error_log TEXT,
+            llm_model_name TEXT,
+            last_updated TEXT NOT NULL,
             FOREIGN KEY (layer_id) REFERENCES layers (layer_id)
         );
         """,
@@ -198,10 +199,10 @@ def insert_camera_log(layer_id, image_path):
         conn.execute(
             """
             INSERT INTO ai_reports (
-                layer_id, timestamp, growth_rate, ai_summary, ai_advice, image_path, json_response, slack_sent, llm_model_name, last_updated
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                layer_id, timestamp, growth_rate, ai_summary, ai_advice, ai_comparison, image_path, json_response, slack_sent, llm_model_name, last_updated
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (layer_id, timestamp, 0.0, 'N/A', '', image_path, '{}', 0, 'gpt-4-turbo', timestamp)
+            (layer_id, timestamp, 0.0, 'N/A', '', 'N/A', image_path, '{}', 0, 'gpt-4-turbo', timestamp)
         )
 
 
@@ -225,6 +226,42 @@ def select_layer_info(layer_id):
         cursor.execute("SELECT * FROM layers WHERE layer_id = ?", (layer_id,))
         row = cursor.fetchone()
         return dict(row) if row else None
+
+def get_previous_day_image(layer_id, current_image_path):
+    """
+    指定された今日の画像パスから日付を読み取り、
+    その前日の最新の画像パスを取得する。
+    """
+    from datetime import datetime, timedelta
+    import os
+
+    try:
+        # 今日の画像ファイル名から日付を抽出 (例: 20251112_090000.jpg)
+        basename = os.path.basename(current_image_path)
+        today_str = basename.split('_')[0]
+        today_dt = datetime.strptime(today_str, '%Y%m%d')
+
+        # 前日の日付を計算
+        previous_day_dt = today_dt - timedelta(days=1)
+        previous_day_str = previous_day_dt.strftime('%Y%m%d')
+
+        with open_db() as conn:
+            cursor = conn.cursor()
+            # 前日の画像の中で、最も新しいものを取得
+            cursor.execute("""
+                SELECT image_path FROM ai_reports
+                WHERE layer_id = ?
+                  AND image_path LIKE ?
+                ORDER BY timestamp DESC
+                LIMIT 1
+            """, (layer_id, f'%/{previous_day_str}_%'))
+
+            row = cursor.fetchone()
+            return row['image_path'] if row else None
+
+    except (ValueError, IndexError) as e:
+        print(f"Error parsing date from image path '{current_image_path}': {e}")
+        return None
 
 def select_schedules():
     """
