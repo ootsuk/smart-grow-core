@@ -36,7 +36,6 @@ DEFAULT_SYSTEM_CONFIG = {
     "drain_pressure_gpio_sig": 27,
 
     # LLM関連
-    "llm_api_key_enc": LLM_API_KEY,  # 暗号化前のキーを暫定で格納
     "llm_model_name": LLM_MODEL_NAME,
 }
 

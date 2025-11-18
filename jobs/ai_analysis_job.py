@@ -10,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 os.environ['GRPC_DNS_RESOLVER'] = 'native'
 
 from database.db_manager import insert_system_log, select_system_config, open_db
+from core.utils import parse_ai_response
 from config import LLM_API_KEY
 import google.generativeai as genai
 from PIL import Image
@@ -170,43 +171,6 @@ def create_analysis_prompt(sensor_data):
     prompt += "\n画像を分析して、上記の形式で回答してください。"
     
     return prompt
-
-
-def parse_ai_response(response_text):
-    """AIレスポンスから構造化データを抽出"""
-    result = {
-        'growth_rate': 0.0,
-        'summary': '',
-        'advice': ''
-    }
-    
-    try:
-        # 成長率を抽出
-        import re
-        growth_match = re.search(r'成長率[:\s]*(\d+\.?\d*)\s*%', response_text)
-        if growth_match:
-            result['growth_rate'] = float(growth_match.group(1))
-        
-        # 状態サマリーを抽出
-        summary_match = re.search(r'\*\*状態サマリー:\*\*\s*(.*?)(?=\*\*|$)', response_text, re.DOTALL)
-        if summary_match:
-            result['summary'] = summary_match.group(1).strip()[:500]  # 最大500文字
-        else:
-            # サマリーが見つからない場合は全文の最初の200文字
-            result['summary'] = response_text[:200].strip()
-        
-        # アドバイスを抽出
-        advice_match = re.search(r'\*\*アドバイス:\*\*\s*(.*?)(?=\*\*|$)', response_text, re.DOTALL)
-        if advice_match:
-            result['advice'] = advice_match.group(1).strip()[:500]  # 最大500文字
-        else:
-            result['advice'] = '定期的な水やりと環境管理を続けてください。'
-        
-    except Exception as e:
-        print(f"[WARNING] AI response parsing error: {e}")
-        result['summary'] = response_text[:200]  # フォールバック
-    
-    return result
 
 
 def save_ai_report(layer_id, image_path, growth_rate, ai_summary, ai_advice, json_response):

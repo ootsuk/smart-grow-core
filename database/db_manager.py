@@ -90,7 +90,6 @@ def get_create_table_queries():
             drain_high_threshold REAL,
             supply_pressure_gpio_sig INTEGER,
             drain_pressure_gpio_sig INTEGER,
-            llm_api_key_enc TEXT,
             llm_model_name TEXT,
             last_modified TEXT NOT NULL
         );
@@ -163,14 +162,14 @@ def init_db(db_path=DB_PATH):
                 INSERT INTO system_config (
                     config_id, water_duration_sec, slack_webhook_url, temp_high_threshold, temp_low_threshold,
                     pump_gpio_sig, dashboard_url, i2c_bus_num, supply_low_threshold, drain_high_threshold,
-                    supply_pressure_gpio_sig, drain_pressure_gpio_sig, llm_api_key_enc, llm_model_name, last_modified
-                ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    supply_pressure_gpio_sig, drain_pressure_gpio_sig, llm_model_name, last_modified
+                ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     cfg['water_duration_sec'], cfg['slack_webhook_url'], cfg['temp_high_threshold'], cfg['temp_low_threshold'],
                     cfg['pump_gpio_sig'], cfg['dashboard_url'], cfg['i2c_bus_num'], cfg['supply_low_threshold'],
                     cfg['drain_high_threshold'], cfg['supply_pressure_gpio_sig'], cfg['drain_pressure_gpio_sig'],
-                    cfg['llm_api_key_enc'], cfg['llm_model_name'], now
+                    cfg['llm_model_name'], now
                 )
             )
 
