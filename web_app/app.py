@@ -17,6 +17,7 @@ from database.db_manager import (
     get_today_ai_report,
     get_ai_report_by_image
 )
+from jobs.ai_analysis_job import parse_ai_response
 from datetime import datetime, timedelta
 import google.generativeai as genai
 from config import LLM_API_KEY
@@ -620,7 +621,7 @@ def api_ai_chat():
                     image_relative_path = f'plant_images/layer_{layer_id}/{image_filename}'
                     
                     # AI応答を解析
-                    analysis_result = parse_ai_response_in_api(ai_response)
+                    analysis_result = parse_ai_response(ai_response)
                     
                     # ai_reportsテーブルに保存
                     timestamp = datetime.now().isoformat()
@@ -628,13 +629,14 @@ def api_ai_chat():
                         conn.execute("""
                             INSERT INTO ai_reports (
                                 layer_id, timestamp, image_path, growth_rate, ai_summary, ai_advice,
-                                json_response, slack_sent, llm_model_name, last_updated
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 'gemini-2.5-flash', ?)
+                                ai_comparison, json_response, slack_sent, llm_model_name, last_updated
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 'gemini-2.5-flash', ?)
                         """, (
                             layer_id, timestamp, image_relative_path, 
                             analysis_result['growth_rate'], 
                             analysis_result['summary'], 
                             analysis_result['advice'],
+                            analysis_result['comparison'],
                             ai_response, timestamp
                         ))
                     
@@ -668,48 +670,6 @@ def api_ai_chat():
     except Exception as e:
         print(f"API エラー: {e}")
         return jsonify({'error': str(e)}), 500
-
-
-def parse_ai_response_in_api(response_text):
-    """AIレスポンスから構造化データを抽出（API用）"""
-    result = {
-        'growth_rate': 0.0,
-        'summary': '',
-        'advice': ''
-    }
-    
-    try:
-        import re
-        # 成長率を抽出
-        growth_match = re.search(r'成長率[:\s]*(\d+\.?\d*)\s*%', response_text)
-        if growth_match:
-            result['growth_rate'] = float(growth_match.group(1))
-        
-        # 状態サマリーを抽出
-        summary_match = re.search(r'\*\*状態サマリー[：:]\*\*\s*([\s\S]*?)(?=\*\*|$)', response_text)
-        if summary_match:
-            result['summary'] = summary_match.group(1).strip()
-        else:
-            # サマリーが見つからない場合は全文をそのまま使用
-            result['summary'] = response_text.strip()
-        
-        # アドバイスを抽出（段落区切りまたは次の見出しまで）
-        advice_match = re.search(r'\*\*アドバイス[：:]\*\*\s*([\s\S]*?)(?=\n\n\*\*|$)', response_text)
-        if advice_match:
-            result['advice'] = advice_match.group(1).strip()
-        else:
-            # フォールバック: アドバイスセクションの終わりまで
-            advice_match2 = re.search(r'\*\*アドバイス[：:]\*\*\s*([\s\S]+)', response_text)
-            if advice_match2:
-                result['advice'] = advice_match2.group(1).strip()
-            else:
-                result['advice'] = '定期的な観察と管理を続けてください。'
-        
-    except Exception as e:
-        print(f"[WARNING] AI response parsing error: {e}")
-        result['summary'] = response_text.strip()
-    
-    return result
 
 
 def create_system_prompt(sensor_data, image_filename):

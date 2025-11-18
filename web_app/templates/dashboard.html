@@ -515,7 +515,8 @@ function displayAIReport(aiReport) {
     // MarkdownをHTMLに変換
     const summaryHtml = aiReport.ai_summary ? marked.parse(aiReport.ai_summary) : 'データなし';
     const adviceHtml = aiReport.ai_advice ? marked.parse(aiReport.ai_advice) : '';
-    
+    const comparisonHtml = aiReport.ai_comparison ? marked.parse(aiReport.ai_comparison) : '';
+
     container.innerHTML = `
         <div class="row">
             <div class="col-md-8">
@@ -535,6 +536,13 @@ function displayAIReport(aiReport) {
                     <h6 class="text-muted">状態サマリー</h6>
                     <div class="markdown-content">${summaryHtml}</div>
                 </div>
+
+                ${comparisonHtml ? `
+                <div class="mb-3">
+                    <h6 class="text-muted">前日比較</h6>
+                    <div class="markdown-content">${comparisonHtml}</div>
+                </div>
+                ` : ''}
                 
                 ${adviceHtml ? `
                 <div class="mb-3">
@@ -585,7 +593,8 @@ function showAIDetailModal(reportId) {
                 // MarkdownをHTMLに変換
                 const summaryHtml = report.ai_summary ? marked.parse(report.ai_summary) : 'データなし';
                 const adviceHtml = report.ai_advice ? marked.parse(report.ai_advice) : 'アドバイスなし';
-                
+                const comparisonHtml = report.ai_comparison ? marked.parse(report.ai_comparison) : '';
+
                 modalBody.innerHTML = `
                     <div class="text-center mb-4">
                         ${report.image_path ? 
@@ -605,6 +614,13 @@ function showAIDetailModal(reportId) {
                         <h5><i class="fas fa-clipboard-check text-success"></i> 状態サマリー</h5>
                         <div class="markdown-content lead">${summaryHtml}</div>
                     </div>
+
+                    ${comparisonHtml ? `
+                    <div class="mb-4">
+                        <h5><i class="fas fa-chart-line text-info"></i> 前日比較</h5>
+                        <div class="markdown-content">${comparisonHtml}</div>
+                    </div>
+                    ` : ''}
                     
                     <div class="mb-4">
                         <h5><i class="fas fa-lightbulb text-warning"></i> アドバイス</h5>
